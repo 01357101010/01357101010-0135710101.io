@@ -1,0 +1,2812 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+<meta charset='UTF-8'>
+<meta name='viewport' content='width=device-width, initial-scale=1.0'>
+<title>SKID Games</title>
+<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+    :root {
+        --bg-color: #050505;
+        --accent-color: #00ff41;
+        --card-bg: #0a0a0a;
+        --text-main: #e0e0e0;
+        --danger: #ff3e3e;
+        --cyan: #00f2ff;
+        --warning: #ffcc00;
+        --muted: #888;
+        --gold: #ffd966;
+        --classified: #ff5f5f;
+        --audio: #b366ff;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+        background-color: var(--bg-color);
+        color: var(--text-main);
+        font-family: 'Fira Code', monospace;
+        margin: 0; padding: 20px;
+        height: 100vh; height: 100dvh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .dashboard-grid {
+        display: grid;
+        grid-template-columns: 1fr 350px;
+        grid-template-rows: auto 1fr;
+        gap: 15px;
+        height: 100%;
+        min-height: 0;
+    }
+
+    .kpi-row {
+        grid-column: 1 / span 2;
+        display: flex;
+        gap: 15px;
+        flex-wrap: wrap;
+        align-items: stretch;
+    }
+
+    .kpi-card {
+        background: var(--card-bg);
+        border: 1px solid #333;
+        padding: 15px;
+        flex: 1 1 110px;
+        border-radius: 4px;
+    }
+
+    .kpi-label { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; }
+    .kpi-value { font-size: 1.4rem; color: var(--accent-color); margin-top: 5px; }
+
+    .terminal-container {
+        background: #000;
+        border: 1px solid var(--accent-color);
+        display: flex;
+        flex-direction: column;
+        padding: 15px;
+        min-height: 0;
+        position: relative;
+    }
+
+    #terminal-output {
+        flex: 1;
+        overflow-y: auto;
+        font-size: 0.9rem;
+        line-height: 1.5;
+        scroll-behavior: smooth;
+    }
+    #terminal-output .line { white-space: pre-wrap; word-break: break-word; }
+
+    #map-display {
+        display: none;
+        background: #000;
+        border-bottom: 1px solid #222;
+        margin-bottom: 10px;
+        flex-shrink: 0;
+    }
+    #map-canvas { display: block; }
+
+    .terminal-input-row {
+        display: flex;
+        border-top: 1px solid #222;
+        padding-top: 10px;
+        margin-top: 10px;
+    }
+
+    .prompt { color: var(--accent-color); margin-right: 10px; white-space: nowrap; }
+
+    #command-line {
+        background: transparent;
+        border: none;
+        color: var(--text-main);
+        font-family: inherit;
+        font-size: 0.9rem;
+        width: 100%;
+        outline: none;
+    }
+    #command-line:disabled { opacity: 0.4; }
+
+    .sidebar { display: flex; flex-direction: column; gap: 15px; min-height: 0; }
+
+    .side-panel {
+        background: var(--card-bg);
+        border: 1px solid #333;
+        padding: 15px;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+    }
+
+    .scrollable { flex: 1; overflow-y: auto; }
+
+    /* IP panel */
+    #ip-panel {
+        border-color: #2a3a2a;
+    }
+    #ip-panel .ip-title {
+        color: var(--accent-color);
+        margin-bottom: 10px;
+        font-size: 0.7rem;
+    }
+    #ip-display {
+        font-size: 0.95rem;
+        color: var(--cyan);
+        letter-spacing: 0.5px;
+        word-break: break-all;
+        padding: 4px 0;
+    }
+    #ip-display.loading {
+        color: var(--muted);
+        font-style: italic;
+    }
+    #ip-detail {
+        margin-top: 6px;
+        font-size: 0.7rem;
+        color: var(--muted);
+        line-height: 1.5;
+    }
+    #ip-detail .row {
+        display: flex;
+        gap: 8px;
+    }
+    #ip-detail .row .k {
+        color: #555;
+        min-width: 60px;
+    }
+    #ip-detail .row .v {
+        color: var(--text-main);
+    }
+
+    .node-item, .mission-item {
+        padding: 8px;
+        border-bottom: 1px solid #222;
+        font-size: 0.8rem;
+    }
+    .node-item { cursor: pointer; transition: background 0.1s; }
+    .node-item:hover { background: #111; }
+    .node-item.online::before { content: '● '; color: var(--accent-color); }
+    .node-item.offline::before { content: '○ '; color: #555; }
+    .node-item.owned::before { content: '◆ '; color: var(--cyan); }
+    .node-item.connected {
+        background: #0a1a1a;
+        border-left: 3px solid var(--accent-color);
+        padding-left: 6px;
+    }
+
+    .mission-item.active { border-left: 2px solid var(--warning); padding-left: 10px; }
+    .mission-item.complete { color: #555; text-decoration: line-through; }
+    .mission-item.locked { display: none; }
+    .mission-item.final {
+        border-left: 2px solid var(--gold);
+        padding-left: 10px;
+        color: var(--gold);
+        animation: pulse-gold 2s ease-in-out infinite;
+    }
+    .mission-item .steps { font-size: 0.7rem; color: var(--muted); margin-top: 4px; }
+    .mission-item .step-done { color: var(--accent-color); }
+    .mission-item .step-active { color: var(--warning); }
+
+    @keyframes pulse-gold {
+        0%, 100% { background: transparent; }
+        50% { background: rgba(255, 217, 102, 0.05); }
+    }
+
+    .status-success { color: var(--accent-color); }
+    .status-error { color: var(--danger); }
+    .status-info { color: var(--cyan); }
+    .status-warn { color: var(--warning); }
+    .status-muted { color: var(--muted); }
+    .status-gold { color: var(--gold); }
+    .status-classified { color: var(--classified); font-weight: 500; }
+    .status-audio { color: var(--audio); font-weight: 500; }
+
+    .diff-pill {
+        display: inline-block;
+        padding: 2px 8px;
+        font-size: 0.65rem;
+        letter-spacing: 1px;
+        border-radius: 2px;
+        margin-top: 4px;
+    }
+    .diff-easy { background: rgba(0,255,65,0.1); border: 1px solid var(--accent-color); color: var(--accent-color); }
+    .diff-normal { background: rgba(0,242,255,0.1); border: 1px solid var(--cyan); color: var(--cyan); }
+    .diff-tough { background: rgba(255,62,62,0.15); border: 1px solid var(--danger); color: var(--danger); }
+
+    .badge {
+        display: none;
+        padding: 4px 10px;
+        font-size: 0.7rem;
+        letter-spacing: 1px;
+        align-self: center;
+        margin-left: auto;
+        white-space: nowrap;
+    }
+    .badge.on { display: inline-block; }
+
+    #free-roam-badge {
+        background: rgba(255, 217, 102, 0.1);
+        border: 1px solid var(--gold);
+        color: var(--gold);
+    }
+
+    #cheat-badge {
+        background: rgba(255, 62, 62, 0.15);
+        border: 1px solid var(--danger);
+        color: var(--danger);
+        animation: pulse-cheat 1.5s ease-in-out infinite;
+    }
+    @keyframes pulse-cheat {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+
+    #game-over-overlay, #difficulty-overlay {
+        display: none;
+        position: absolute;
+        inset: 0;
+        background: rgba(0,0,0,0.94);
+        z-index: 100;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        color: var(--danger);
+        text-align: center;
+        padding: 20px;
+    }
+    #game-over-overlay h1, #difficulty-overlay h1 { font-size: 1.4rem; letter-spacing: 2px; }
+    #game-over-overlay button, #difficulty-overlay button {
+        background: none;
+        border: 1px solid var(--danger);
+        color: var(--danger);
+        padding: 10px 20px;
+        cursor: pointer;
+        font-family: inherit;
+        letter-spacing: 1px;
+        margin-top: 10px;
+    }
+    #game-over-overlay button:hover { background: var(--danger); color: #000; }
+    #game-over-overlay.victory { color: var(--accent-color); }
+    #game-over-overlay.victory button {
+        border-color: var(--accent-color); color: var(--accent-color);
+    }
+    #game-over-overlay.victory button:hover { background: var(--accent-color); color: #000; }
+    #game-over-overlay .stats-grid {
+        display: grid;
+        grid-template-columns: auto auto;
+        gap: 6px 20px;
+        margin: 15px 0;
+        font-size: 0.85rem;
+        color: var(--text-main);
+    }
+    #game-over-overlay .stats-grid .label { color: var(--muted); text-align: right; }
+    #game-over-overlay .stats-grid .val { color: var(--accent-color); text-align: left; font-weight: 500; }
+
+    #difficulty-overlay { color: var(--text-main); z-index: 101; }
+    #difficulty-overlay h1 { color: var(--accent-color); }
+    #difficulty-overlay .sub {
+        color: var(--muted); font-size: 0.85rem;
+        margin: 10px 0 25px; max-width: 500px;
+    }
+    #difficulty-overlay .diff-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 15px;
+        max-width: 720px;
+        width: 100%;
+    }
+    .diff-card {
+        background: #0a0a0a;
+        border: 2px solid #333;
+        padding: 20px;
+        cursor: pointer;
+        transition: all 0.15s;
+        text-align: left;
+        font-family: inherit;
+        color: var(--text-main);
+    }
+    .diff-card:hover { transform: translateY(-3px); }
+    .diff-card h3 { margin: 0 0 10px; font-size: 1rem; letter-spacing: 2px; }
+    .diff-card .desc { font-size: 0.75rem; color: var(--muted); line-height: 1.5; }
+    .diff-card[data-diff="easy"] { border-color: var(--accent-color); }
+    .diff-card[data-diff="easy"] h3 { color: var(--accent-color); }
+    .diff-card[data-diff="easy"]:hover { background: rgba(0,255,65,0.05); box-shadow: 0 0 30px rgba(0,255,65,0.2); }
+    .diff-card[data-diff="normal"] { border-color: var(--cyan); }
+    .diff-card[data-diff="normal"] h3 { color: var(--cyan); }
+    .diff-card[data-diff="normal"]:hover { background: rgba(0,242,255,0.05); box-shadow: 0 0 30px rgba(0,242,255,0.2); }
+    .diff-card[data-diff="tough"] { border-color: var(--danger); }
+    .diff-card[data-diff="tough"] h3 { color: var(--danger); }
+    .diff-card[data-diff="tough"]:hover { background: rgba(255,62,62,0.05); box-shadow: 0 0 30px rgba(255,62,62,0.2); }
+    .diff-card .time { display: block; margin-top: 10px; font-size: 0.7rem; }
+
+    @media (max-width: 700px) {
+        #difficulty-overlay .diff-grid { grid-template-columns: 1fr; }
+    }
+
+    #file-viewer {
+        display: none;
+        position: absolute;
+        inset: 0;
+        background: rgba(0,0,0,0.85);
+        z-index: 90;
+        justify-content: center;
+        align-items: center;
+        padding: 30px;
+    }
+    #file-viewer.open { display: flex; }
+    .file-window {
+        background: #0a0a0a;
+        border: 1px solid var(--cyan);
+        width: 100%; max-width: 700px; max-height: 80%;
+        display: flex; flex-direction: column;
+        box-shadow: 0 0 40px rgba(0, 242, 255, 0.15);
+    }
+    .file-window.classified { border-color: var(--classified); box-shadow: 0 0 40px rgba(255, 95, 95, 0.2); }
+    .file-window.audio { border-color: var(--audio); box-shadow: 0 0 40px rgba(179, 102, 255, 0.25); }
+    .file-window-header {
+        background: #001a1a;
+        padding: 10px 15px;
+        border-bottom: 1px solid var(--cyan);
+        display: flex; justify-content: space-between; align-items: center;
+        font-size: 0.8rem; color: var(--cyan);
+    }
+    .file-window.classified .file-window-header { background: #1a0000; border-bottom-color: var(--classified); color: var(--classified); }
+    .file-window.audio .file-window-header { background: #15001a; border-bottom-color: var(--audio); color: var(--audio); }
+    .file-window-header .close-btn {
+        background: none; border: 1px solid var(--cyan); color: var(--cyan);
+        padding: 4px 10px; cursor: pointer; font-family: inherit; font-size: 0.75rem;
+    }
+    .file-window.classified .file-window-header .close-btn { border-color: var(--classified); color: var(--classified); }
+    .file-window.audio .file-window-header .close-btn { border-color: var(--audio); color: var(--audio); }
+    .file-window-header .close-btn:hover { background: var(--cyan); color: #000; }
+    .file-window.classified .file-window-header .close-btn:hover { background: var(--classified); color: #000; }
+    .file-window.audio .file-window-header .close-btn:hover { background: var(--audio); color: #000; }
+    .file-window-body {
+        padding: 20px; overflow-y: auto;
+        font-size: 0.85rem; line-height: 1.6;
+        white-space: pre-wrap; color: var(--text-main); flex: 1;
+    }
+    .file-window-body .redacted {
+        background: #111; color: #111; user-select: none; transition: all 0.3s;
+    }
+    .file-window-body .redacted:hover { color: #ff3e3e; background: #1a0000; }
+    .file-window-body .audio-line { color: var(--audio); }
+    .file-window-body .xref {
+        color: var(--cyan); text-decoration: underline; cursor: pointer; transition: all 0.15s;
+    }
+    .file-window-body .xref:hover { color: var(--accent-color); background: rgba(0,255,65,0.08); }
+    .file-window-body .xref-missing {
+        color: var(--muted); text-decoration: line-through; cursor: not-allowed;
+    }
+    .file-window-footer {
+        padding: 8px 15px; border-top: 1px solid #222;
+        font-size: 0.7rem; color: var(--muted);
+        display: flex; justify-content: space-between;
+    }
+
+    #graph-viewer {
+        display: none;
+        position: absolute; inset: 0;
+        background: rgba(0,0,0,0.94);
+        z-index: 95;
+        justify-content: center; align-items: center;
+        padding: 30px;
+    }
+    #graph-viewer.open { display: flex; }
+    .graph-window {
+        background: #0a0a0a; border: 1px solid var(--cyan);
+        width: 100%; max-width: 900px; max-height: 90%;
+        display: flex; flex-direction: column;
+        box-shadow: 0 0 40px rgba(0,242,255,0.15);
+    }
+    .graph-window-header {
+        background: #001a1a; padding: 10px 15px;
+        border-bottom: 1px solid var(--cyan);
+        display: flex; justify-content: space-between; align-items: center;
+        font-size: 0.8rem; color: var(--cyan);
+    }
+    .graph-window-header .close-btn {
+        background: none; border: 1px solid var(--cyan); color: var(--cyan);
+        padding: 4px 10px; cursor: pointer; font-family: inherit; font-size: 0.75rem;
+    }
+    .graph-window-header .close-btn:hover { background: var(--cyan); color: #000; }
+    #graph-canvas { display: block; width: 100%; }
+    .graph-window-footer {
+        padding: 8px 15px; border-top: 1px solid #222;
+        font-size: 0.7rem; color: var(--muted);
+        display: flex; justify-content: space-between;
+    }
+
+    .waveform {
+        display: inline-flex; align-items: center; gap: 2px;
+        height: 14px; vertical-align: middle; margin-left: 8px;
+    }
+    .waveform span {
+        display: inline-block; width: 2px; background: var(--audio);
+        height: 4px; animation: wave 1.2s ease-in-out infinite;
+    }
+    .waveform span:nth-child(1) { animation-delay: 0s; }
+    .waveform span:nth-child(2) { animation-delay: 0.15s; }
+    .waveform span:nth-child(3) { animation-delay: 0.3s; }
+    .waveform span:nth-child(4) { animation-delay: 0.45s; }
+    .waveform span:nth-child(5) { animation-delay: 0.6s; }
+    @keyframes wave {
+        0%, 100% { height: 4px; }
+        50% { height: 14px; }
+    }
+
+    .progress-bar {
+        display: inline-block; width: 120px; height: 8px;
+        background: #111; border: 1px solid #333;
+        vertical-align: middle; margin: 0 6px;
+    }
+    .progress-bar > span {
+        display: block; height: 100%; background: var(--cyan);
+        transition: width 0.1s linear;
+    }
+
+    #trace-bar-wrap {
+        width: 100%; height: 4px; background: #1a1a1a;
+        margin-top: 6px; border-radius: 2px; overflow: hidden;
+    }
+    #trace-bar {
+        height: 100%; width: 0%;
+        background: var(--danger); transition: width 0.15s linear;
+    }
+
+    .prompt.connected { color: var(--cyan); }
+
+    body.rainbow #terminal-output .line { animation: rainbow-text 3s linear infinite; }
+    @keyframes rainbow-text {
+        0%   { color: #ff3e3e; }
+        17%  { color: #ffcc00; }
+        33%  { color: #00ff41; }
+        50%  { color: #00f2ff; }
+        67%  { color: #b366ff; }
+        83%  { color: #ff66b3; }
+        100% { color: #ff3e3e; }
+    }
+
+    @media (max-width: 800px) {
+        body { padding: 10px; height: auto; min-height: 100dvh; overflow: auto; }
+        .dashboard-grid {
+            grid-template-columns: 1fr;
+            grid-template-rows: auto auto auto;
+            height: auto;
+        }
+        .kpi-row { grid-column: 1; }
+        .sidebar { flex-direction: column; }
+        .side-panel { min-height: 180px; }
+        .terminal-container { min-height: 60vh; }
+    }
+
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #0a0a0a; }
+    ::-webkit-scrollbar-thumb { background: #222; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #333; }
+</style>
+</head>
+<body>
+<div class='dashboard-grid'>
+    <div class='kpi-row'>
+        <div class='kpi-card'>
+            <div class='kpi-label'>Connection</div>
+            <div class='kpi-value' id='conn-status'>SECURE</div>
+        </div>
+        <div class='kpi-card'>
+            <div class='kpi-label'>Host</div>
+            <div class='kpi-value' id='host-status' style='color:var(--muted); font-size:1rem;'>—</div>
+        </div>
+        <div class='kpi-card'>
+            <div class='kpi-label'>Missions</div>
+            <div class='kpi-value' id='active-missions-count'>0</div>
+        </div>
+        <div class='kpi-card'>
+            <div class='kpi-label'>Trace</div>
+            <div class='kpi-value' id='trace-val' style='color:var(--danger)'>0%</div>
+            <div id='trace-bar-wrap'><div id='trace-bar'></div></div>
+        </div>
+        <div class='kpi-card'>
+            <div class='kpi-label'>Intel</div>
+            <div class='kpi-value' id='dossier-val' style='color:var(--classified); font-size:1.1rem;'>0/16</div>
+            <div style='font-size:0.65rem; color:var(--audio);' id='audio-val'>0/4 audio</div>
+        </div>
+        <div class='kpi-card'>
+            <div class='kpi-label'>Credits</div>
+            <div class='kpi-value' id='credits-val' style='color:var(--warning)'>0</div>
+        </div>
+        <div class='kpi-card'>
+            <div class='kpi-label'>Difficulty</div>
+            <div class='kpi-value' style='font-size:1rem;' id='diff-val'>—</div>
+            <span class='diff-pill diff-easy' id='diff-pill'>EASY</span>
+        </div>
+        <span id='free-roam-badge' class='badge'>FREE ROAM</span>
+        <span id='cheat-badge' class='badge'>⚡ CHEATS</span>
+    </div>
+
+    <div class='terminal-container' id='terminal-container'>
+        <div id='difficulty-overlay' role='dialog' aria-modal='true'>
+            <h1>SKIDNET-OS — SELECT DIFFICULTY</h1>
+            <p class='sub'>Pick your poison. This is set at boot and can be changed later with <b>difficulty &lt;mode&gt;</b>, but changing mid-run resets your save.</p>
+            <div class='diff-grid'>
+                <button class='diff-card' data-diff="easy">
+                    <h3>EASY</h3>
+                    <div class='desc'>
+                        Slow trace growth. Fast decay. No ICE failures.<br>
+                        30 missions. Trace never really threatens you.<br>
+                        Built for seeing the story.
+                    </div>
+                    <span class='time' style='color:var(--accent-color);'>~10 min</span>
+                </button>
+                <button class='diff-card' data-diff="normal">
+                    <h3>NORMAL</h3>
+                    <div class='desc'>
+                        Balanced trace rate. Moderate decay.<br>
+                        50 missions with multi-step objectives.<br>
+                        Real consequences for sloppy play.
+                    </div>
+                    <span class='time' style='color:var(--cyan);'>~20 min</span>
+                </button>
+                <button class='diff-card' data-diff="tough">
+                    <h3>FUCKING TOUGH</h3>
+                    <div class='desc'>
+                        Trace races fast. Decay is pitiful.<br>
+                        75 missions with 4-step objectives.<br>
+                        ICE can reject your crack entirely.
+                    </div>
+                    <span class='time' style='color:var(--danger);'>~45+ min</span>
+                </button>
+            </div>
+        </div>
+
+        <div id='game-over-overlay' role='dialog' aria-modal='true' aria-labelledby='go-title'>
+            <h1 id='go-title'>CONNECTION TERMINATED</h1>
+            <p id='go-subtitle'>System Traced. Forced Logout.</p>
+            <div class='stats-grid' id='go-stats-grid'></div>
+            <button type='button' id='reboot-btn'>REBOOT</button>
+        </div>
+
+        <div id='file-viewer' role='dialog' aria-modal='true' aria-labelledby='fv-title'>
+            <div class='file-window' id='fv-window'>
+                <div class='file-window-header'>
+                    <span id='fv-title'>file.txt</span>
+                    <button type='button' class='close-btn' id='fv-close'>✕ CLOSE</button>
+                </div>
+                <div class='file-window-body' id='fv-body'></div>
+                <div class='file-window-footer'>
+                    <span id='fv-meta'></span>
+                    <span id='fv-hint'>[esc] close · [d] download · click [links]</span>
+                </div>
+            </div>
+        </div>
+
+        <div id='graph-viewer' role='dialog' aria-modal='true'>
+            <div class='graph-window'>
+                <div class='graph-window-header'>
+                    <span>◉ LINK ANALYSIS GRAPH</span>
+                    <button type='button' class='close-btn' id='graph-close'>✕ CLOSE</button>
+                </div>
+                <canvas id='graph-canvas' width='900' height='520'></canvas>
+                <div class='graph-window-footer'>
+                    <span id='graph-stats'></span>
+                    <span>Hover a node · [esc] close</span>
+                </div>
+            </div>
+        </div>
+
+        <div id='map-display'><canvas id='map-canvas' width='600' height='250'></canvas></div>
+        <div id='terminal-output' aria-live='polite' aria-atomic='false'></div>
+        <div class='terminal-input-row'>
+            <span class='prompt' id='prompt-label'>user@skidnet:~$</span>
+            <input type='text' id='command-line' autofocus autocomplete='off' spellcheck='false' aria-label='Command input'>
+        </div>
+    </div>
+
+    <div class='sidebar'>
+        <div class='side-panel'>
+            <div style='color:var(--cyan); margin-bottom:10px; font-size:0.7rem;'>NETWORK NODES</div>
+            <div id='nodes-container' class='scrollable'></div>
+        </div>
+        <div class='side-panel'>
+            <div style='color:var(--warning); margin-bottom:10px; font-size:0.7rem;'>MISSION LOG</div>
+            <div id='missions-container' class='scrollable'></div>
+        </div>
+        <div class='side-panel' id='ip-panel'>
+            <div class='ip-title'>◉ YOUR IP ADDRESS</div>
+            <div id='ip-display' class='loading'>detecting...</div>
+            <div id='ip-detail'></div>
+        </div>
+    </div>
+</div>
+
+<script>
+/* ============================================================
+   DIFFICULTY PRESETS
+   ============================================================ */
+const DIFFICULTIES = {
+    easy: {
+        name: 'EASY', pill: 'easy',
+        TICK_MS: 100,
+        TRACE_RATE: 0.15, TRACE_DECAY: 0.6,
+        TRACE_MISSION_REWARD: 40,
+        TRACE_DISCONNECT_RELIEF: 30, TRACE_ABORT_RELIEF: 40,
+        PROBE_DELAY: 450, CRACK_DELAY: 800, DECRYPT_DELAY: 1100,
+        ROUTE_DELAY: 600, SCAN_DELAY: 300,
+        PENALTY_PROBE: 1, PENALTY_CRACK: 1, PENALTY_DECRYPT: 2,
+        ROUTE_MULTIPLIER: 0.2, ICE_FAIL_CHANCE: 0,
+        MISSION_COUNT: 30, MISSION_TIER_SIZE: 10,
+        FINAL_REWARD: 1000,
+        description: 'Slow trace, no ICE, short campaign.',
+    },
+    normal: {
+        name: 'NORMAL', pill: 'normal',
+        TICK_MS: 100,
+        TRACE_RATE: 0.5, TRACE_DECAY: 0.15,
+        TRACE_MISSION_REWARD: 20,
+        TRACE_DISCONNECT_RELIEF: 15, TRACE_ABORT_RELIEF: 25,
+        PROBE_DELAY: 900, CRACK_DELAY: 1600, DECRYPT_DELAY: 2200,
+        ROUTE_DELAY: 1200, SCAN_DELAY: 600,
+        PENALTY_PROBE: 4, PENALTY_CRACK: 6, PENALTY_DECRYPT: 8,
+        ROUTE_MULTIPLIER: 0.4, ICE_FAIL_CHANCE: 0.10,
+        MISSION_COUNT: 50, MISSION_TIER_SIZE: 17,
+        FINAL_REWARD: 1000,
+        description: 'Balanced trace, occasional ICE, standard campaign.',
+    },
+    tough: {
+        name: 'FUCKING TOUGH', pill: 'tough',
+        TICK_MS: 100,
+        TRACE_RATE: 1.2, TRACE_DECAY: 0.05,
+        TRACE_MISSION_REWARD: 8,
+        TRACE_DISCONNECT_RELIEF: 8, TRACE_ABORT_RELIEF: 12,
+        PROBE_DELAY: 1400, CRACK_DELAY: 2600, DECRYPT_DELAY: 3200,
+        ROUTE_DELAY: 1800, SCAN_DELAY: 900,
+        PENALTY_PROBE: 10, PENALTY_CRACK: 14, PENALTY_DECRYPT: 18,
+        ROUTE_MULTIPLIER: 0.6, ICE_FAIL_CHANCE: 0.35,
+        MISSION_COUNT: 75, MISSION_TIER_SIZE: 19,
+        FINAL_REWARD: 2000,
+        description: 'Racing trace, common ICE, long brutal campaign.',
+    },
+};
+
+const BASE_CONFIG = {
+    MAP_HEIGHT: 250,
+    SAVE_KEY: 'skidnet-save-v5',
+    CHEAT_KEY: 'skidnet-cheats-v1',
+    DIFF_KEY: 'skidnet-difficulty-v1',
+    SOUND_ENABLED_DEFAULT: true,
+    FINAL_MISSION_ID: 100,
+    REQUIRED_FILES: ['router_config.txt','notes.txt','spool.log','fragment_04.dat','manifest.lock','whistleblower.txt'],
+    DOSSIER_FILES: ['watchlist_alpha.sig','cell_dossier_07.enc','intercept_1442.log','threat_assessment_r4.df','asset_network.map','field_report_karachi.txt','field_report_berlin.txt','financing_trail.led','comms_patterns.an','courier_manifest.txt','safehouse_registry.db','directive_omega.sig'],
+    AUDIO_LOGS: ['audio_0321.wav','audio_0887.wav','audio_1402.wav','audio_1994.wav'],
+    LINK_TARGETS: [
+        { a: 'watchlist_alpha.sig',      b: 'cell_dossier_07.enc',   label: 'subject ↔ cell' },
+        { a: 'intercept_1442.log',       b: 'comms_patterns.an',     label: 'transcript ↔ pattern' },
+        { a: 'financing_trail.led',      b: 'asset_network.map',     label: 'money ↔ network' },
+        { a: 'courier_manifest.txt',     b: 'safehouse_registry.db', label: 'transport ↔ location' },
+        { a: 'directive_omega.sig',      b: 'intercept_1442.log',    label: 'order ↔ evidence' },
+        { a: 'field_report_karachi.txt', b: 'financing_trail.led',   label: 'origin ↔ funds' },
+    ],
+};
+
+let CONFIG = {};
+function applyDifficulty(modeKey) {
+    const preset = DIFFICULTIES[modeKey];
+    if (!preset) return false;
+    CONFIG = Object.assign({}, BASE_CONFIG, preset, { difficulty: modeKey });
+    return true;
+}
+applyDifficulty('easy');
+
+/* ============================================================
+   SAFE ERROR REPORTING
+   ============================================================ */
+window.onerror = function (msg, src, line, col) {
+    try {
+        if (typeof google !== 'undefined' && google.colab && google.colab.kernel) {
+            google.colab.kernel.invokeFunction('report_js_error',
+                [`${msg} @ ${src}:${line}:${col}`], {});
+        }
+    } catch (e) {}
+    return false;
+};
+
+/* ============================================================
+   DOM REFS
+   ============================================================ */
+const $ = (id) => document.getElementById(id);
+const output          = $('terminal-output');
+const input           = $('command-line');
+const traceDisplay    = $('trace-val');
+const traceBar        = $('trace-bar');
+const connStatus      = $('conn-status');
+const hostStatus      = $('host-status');
+const mapCanvas       = $('map-canvas');
+const mapDisplay      = $('map-display');
+const nodesContainer  = $('nodes-container');
+const missionsContainer = $('missions-container');
+const activeMissionsCount = $('active-missions-count');
+const creditsVal      = $('credits-val');
+const dossierVal      = $('dossier-val');
+const audioVal        = $('audio-val');
+const diffVal         = $('diff-val');
+const diffPill        = $('diff-pill');
+const overlay         = $('game-over-overlay');
+const diffOverlay     = $('difficulty-overlay');
+const goStatsGrid     = $('go-stats-grid');
+const goTitle         = $('go-title');
+const goSubtitle      = $('go-subtitle');
+const rebootBtn       = $('reboot-btn');
+const terminalContainer = $('terminal-container');
+const promptLabel     = $('prompt-label');
+const fileViewer      = $('file-viewer');
+const fvWindow        = $('fv-window');
+const fvTitle         = $('fv-title');
+const fvBody          = $('fv-body');
+const fvMeta          = $('fv-meta');
+const fvClose         = $('fv-close');
+const graphViewer     = $('graph-viewer');
+const graphCanvas     = $('graph-canvas');
+const graphClose      = $('graph-close');
+const graphStats      = $('graph-stats');
+const freeRoamBadge   = $('free-roam-badge');
+const cheatBadge      = $('cheat-badge');
+const ipDisplay       = $('ip-display');
+const ipDetail        = $('ip-detail');
+
+/* ============================================================
+   UTILITIES
+   ============================================================ */
+const esc = (s) => String(s).replace(/[&<>"']/g, c => (
+    { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]
+));
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+
+function log(msg, cls = '', { asText = false } = {}) {
+    const d = document.createElement('div');
+    d.className = 'line' + (cls ? ' ' + cls : '');
+    if (asText) d.textContent = msg;
+    else d.innerHTML = msg;
+    output.appendChild(d);
+    output.scrollTop = output.scrollHeight;
+}
+
+function linkKey(a, b) { return [a, b].sort().join('||'); }
+
+/* ============================================================
+   IP LOOKUP
+   ============================================================ */
+async function fetchVisitorIP() {
+    ipDisplay.classList.add('loading');
+    ipDisplay.textContent = 'detecting...';
+    ipDetail.innerHTML = '';
+
+    let ip = null;
+    let source = null;
+    let geo = null;
+
+    // Primary: ipapi.co (HTTPS, CORS-friendly, no key)
+    try {
+        const r = await fetch('https://ipapi.co/json/', { cache: 'no-store' });
+        if (r.ok) {
+            const data = await r.json();
+            if (data && data.ip) { ip = data.ip; source = 'ipapi.co'; geo = data; }
+        }
+    } catch (e) {}
+
+    // Fallback 1: api.ipify.org
+    if (!ip) {
+        try {
+            const r = await fetch('https://api.ipify.org?format=json', { cache: 'no-store' });
+            if (r.ok) {
+                const data = await r.json();
+                if (data && data.ip) { ip = data.ip; source = 'ipify.org'; }
+            }
+        } catch (e) {}
+    }
+
+    // Fallback 2: api64.ipify.org (IPv6-aware)
+    if (!ip) {
+        try {
+            const r = await fetch('https://api64.ipify.org?format=json', { cache: 'no-store' });
+            if (r.ok) {
+                const data = await r.json();
+                if (data && data.ip) { ip = data.ip; source = 'ipify.org (v6)'; }
+            }
+        } catch (e) {}
+    }
+
+    if (!ip) {
+        ipDisplay.classList.remove('loading');
+        ipDisplay.textContent = '127.0.0.1';
+        ipDisplay.style.color = 'var(--muted)';
+        ipDetail.innerHTML = `<div class="row"><span class="k">note</span><span class="v" style="color:var(--muted);">offline / blocked — showing localhost</span></div>`;
+        return { ip: '127.0.0.1', source: 'local', geo: null };
+    }
+
+    ipDisplay.classList.remove('loading');
+    ipDisplay.style.color = 'var(--cyan)';
+    ipDisplay.textContent = ip;
+
+    // Build detail rows
+    const rows = [];
+    if (source) rows.push(['src', source]);
+    if (geo) {
+        if (geo.country_name)  rows.push(['country', geo.country_name + (geo.country_code ? ` (${geo.country_code})` : '')]);
+        if (geo.region)        rows.push(['region', geo.region]);
+        if (geo.city)          rows.push(['city', geo.city]);
+        if (geo.postal)        rows.push(['postal', geo.postal]);
+        if (geo.org)           rows.push(['org', geo.org]);
+        if (geo.asn)           rows.push(['asn', geo.asn]);
+        if (geo.timezone)      rows.push(['tz', geo.timezone]);
+    }
+
+    ipDetail.innerHTML = rows.map(([k, v]) =>
+        `<div class="row"><span class="k">${esc(k)}</span><span class="v">${esc(v)}</span></div>`
+    ).join('');
+
+    return { ip, source, geo };
+}
+
+/* ============================================================
+   SOUND
+   ============================================================ */
+const Sound = (() => {
+    let ctx = null;
+    let enabled = BASE_CONFIG.SOUND_ENABLED_DEFAULT;
+    function ensureCtx() {
+        if (!ctx) {
+            try { ctx = new (window.AudioContext || window.webkitAudioContext)(); }
+            catch (e) { enabled = false; }
+        }
+        return ctx;
+    }
+    function beep(freq = 440, dur = 0.06, type = 'square', gain = 0.03) {
+        if (!enabled) return;
+        const c = ensureCtx(); if (!c) return;
+        try {
+            const osc = c.createOscillator();
+            const g = c.createGain();
+            osc.type = type; osc.frequency.value = freq; g.gain.value = gain;
+            osc.connect(g); g.connect(c.destination);
+            osc.start();
+            g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + dur);
+            osc.stop(c.currentTime + dur);
+        } catch (e) {}
+    }
+    function chord(freqs, dur = 0.4) {
+        freqs.forEach((f, i) => setTimeout(() => beep(f, dur, 'triangle', 0.04), i * 80));
+    }
+    return {
+        key:   () => beep(880, 0.02, 'square', 0.015),
+        ok:    () => { beep(660, 0.05); setTimeout(() => beep(990, 0.08), 60); },
+        error: () => beep(160, 0.18, 'sawtooth', 0.04),
+        warn:  () => beep(330, 0.12, 'triangle', 0.03),
+        trace: () => beep(120, 0.25, 'sawtooth', 0.05),
+        file:  () => { beep(520, 0.04); setTimeout(() => beep(780, 0.06), 50); },
+        classified: () => { beep(220, 0.1, 'sawtooth', 0.05); setTimeout(() => beep(180, 0.15, 'sawtooth', 0.05), 100); },
+        audio: () => { beep(440, 0.08, 'triangle', 0.04); setTimeout(() => beep(560, 0.1, 'triangle', 0.04), 80); setTimeout(() => beep(680, 0.12, 'triangle', 0.04), 160); },
+        link:  () => { beep(660, 0.05, 'triangle', 0.04); setTimeout(() => beep(990, 0.08, 'triangle', 0.04), 60); setTimeout(() => beep(1320, 0.1, 'triangle', 0.04), 130); },
+        victory: () => chord([523, 659, 784, 1047], 0.5),
+        toggle: () => { enabled = !enabled; return enabled; },
+        isEnabled: () => enabled,
+    };
+})();
+
+/* ============================================================
+   FILE LIBRARY
+   ============================================================ */
+const FILE_LIBRARY = {
+    'gateway-config.txt': { name: 'router_config.txt', lines: [
+        '// Gateway Router Configuration',
+        '// Last modified: 2026-08-14',
+        '',
+        'WAN_IP=82.12.4.91',
+        'LAN_SUBNET=192.168.1.0/24',
+        'ADMIN_PORT=8080',
+        '',
+        '// NOTE: change default credentials before next audit',
+        'user: admin',
+        'pass: <span class="redacted">hunter2_gateway</span>',
+    ]},
+    'workstation-notes.txt': { name: 'notes.txt', lines: [
+        'TODO:',
+        ' - Finish quarterly report',
+        ' - Rotate SSH keys',
+        ' - Ping IT about the weird traffic on 104.22.3.19',
+        '',
+        'Reminder: Lisa said the new firewall rules roll out Friday.',
+        'Might break the VPN again. Back up configs before then.',
+        '',
+        'P.S. — check [courier_manifest.txt] if the audit comes up.',
+    ]},
+    'mail-spool.txt': { name: 'spool.log', lines: [
+        '[2026-08-12 03:14:07] from=<it-ops@corp> to=<all-staff>',
+        '  Subject: Scheduled Maintenance Window',
+        '  Body: Systems offline 02:00-04:00 UTC Saturday.',
+        '',
+        '[2026-08-13 22:41:19] from=<unknown@relay> to=<root@mail>',
+        '  Subject: [ENCRYPTED]',
+        '  Body: <span class="redacted">b3JlIHlvdSBhcmUgbm90IHN1cHBvc2VkIHRvIHNlZSB0aGlz</span>',
+        '',
+        'See [intercept_1442.log] and [comms_patterns.an] for context.',
+    ]},
+    'research-fragments.txt': { name: 'fragment_04.dat', lines: [
+        'PROJECT: HELIOS',
+        'STATUS: PHASE 3 — COMPROMISED',
+        '',
+        'Fragment 04 of 09 recovered.',
+        'The encrypted payload references a drop site at:',
+        '  <span class="redacted">159.89.2.14 / vault / keys.enc</span>',
+        '',
+        'If you are reading this, do NOT probe Blackvault directly.',
+        'Route through the Proxy Relay first.',
+        '',
+        'Cross-ref: [threat_assessment_r4.df], [asset_network.map].',
+    ]},
+    'proxy-routes.txt': { name: 'routing_table.txt', lines: [
+        '# Active proxy routes',
+        '45.77.13.88 -> 216.58.210.36   [priority 1]',
+        '45.77.13.88 -> 104.22.3.19    [priority 2]',
+        '45.77.13.88 -> 159.89.2.14    [BLOCKED — manual override required]',
+        '',
+        '// This relay logs all traffic. Do not send plaintext.',
+        '// Related: [asset_network.map], [safehouse_registry.db].',
+    ]},
+    'blackvault-manifest.txt': { name: 'manifest.lock', lines: [
+        '== BLACKVAULT MANIFEST ==',
+        'Owner: [REDACTED]',
+        'ICE Level: 4',
+        '',
+        'Contents:',
+        '  - keys.enc',
+        '  - ledger.dat',
+        '  - <span class="redacted">whistleblower.txt</span>',
+        '',
+        'Access requires: crack -> decrypt -> exfiltrate',
+        '',
+        'Adjacent intel: [directive_omega.sig], [cell_dossier_07.enc].',
+    ]},
+    'blackvault-whistle.txt': { name: 'whistleblower.txt', lines: [
+        'If you are reading this, you are already inside.',
+        '',
+        'I worked for Helios for four years. What we built was never',
+        'meant to be sold. The ledger on this box proves it.',
+        '',
+        'You have two choices:',
+        '  1. Walk away. Delete this file. Nobody will know.',
+        '  2. Take it to the press. They will come for you.',
+        '',
+        'I made my choice. Make yours.',
+        '',
+        '  - A. R.',
+    ]},
+    'decrypted-payload.txt': { name: 'payload.txt', lines: [
+        '-- decryption successful --',
+        '',
+        'HELIOS DROP COORDINATES:',
+        '  lat: 47.6062',
+        '  lon: -122.3321',
+        '',
+        'DEAD DROP SCHEDULE:',
+        '  Every other Thursday, 23:00 local.',
+        '',
+        'Contact handle: <span class="redacted">nightjar</span>',
+        '',
+        'See also: [safehouse_registry.db], [directive_omega.sig].',
+    ]},
+
+    'watchlist_alpha.sig': { name: 'watchlist_alpha.sig', classification: 'CLASSIFIED', lines: [
+        '╔════════════════════════════════════════════════════╗',
+        '║  EYES ONLY — INTEL WATCHLIST ALPHA                ║',
+        '║  Distribution: CELL-7 / LIAISON ONLY              ║',
+        '║  Ref: WLA-2026-0814-A                             ║',
+        '╚════════════════════════════════════════════════════╝',
+        '',
+        'PRIMARY SUBJECTS (fictional designations):',
+        '',
+        '  [A-01] "MERIDIAN"',
+        '    Status:   ACTIVE',
+        '    Region:   Karachi / Gulf transit',
+        '    Role:     Logistics coordinator',
+        '    Notes:    Uses shell corps. Never travels under legal name.',
+        '',
+        '  [A-02] "CANOPY"',
+        '    Status:   ACTIVE',
+        '    Region:   Berlin / Vienna',
+        '    Role:     Financial facilitator',
+        '    Notes:    Handles crypto rail for MERIDIAN.',
+        '',
+        '  [A-03] "KESTREL"',
+        '    Status:   DORMANT',
+        '    Role:     Courier',
+        '',
+        '  [A-04] "OBSIDIAN"',
+        '    Status:   ACTIVE — HIGHEST PRIORITY',
+        '    Region:   Pacific Northwest',
+        '    Role:     Handler / cutout',
+        '    Notes:    Links MERIDIAN to undisclosed sponsor.',
+        '',
+        'See [cell_dossier_07.enc] for full pattern analysis.',
+        '— end of WATCHLIST ALPHA —',
+    ]},
+    'cell_dossier_07.enc': { name: 'cell_dossier_07.enc', classification: 'CLASSIFIED', lines: [
+        '╔════════════════════════════════════════════════════╗',
+        '║  CELL DOSSIER #07 — "NIGHTJAR"                    ║',
+        '║  Ref: CD-07-2026-0811                              ║',
+        '╚════════════════════════════════════════════════════╝',
+        '',
+        'COMPOSITION (estimated):',
+        '  4–7 core members, no fixed territory.',
+        '',
+        'ACTIVITY PATTERN:',
+        '  1. Acquire material via shell vendor in Karachi.',
+        '  2. Move through Vienna → Berlin → Lisbon.',
+        '  3. Finance through three-layer crypto washing.',
+        '',
+        'SIGINT HIGHLIGHT:',
+        '  "the ledger moves next thursday, usual drop"',
+        '',
+        'Cross-ref: [watchlist_alpha.sig], [intercept_1442.log].',
+        '— end of CELL DOSSIER #07 —',
+    ]},
+    'intercept_1442.log': { name: 'intercept_1442.log', classification: 'CLASSIFIED', lines: [
+        '[INTERCEPT LOG — CHANNEL 1442]',
+        '[Classification: SIGINT / TOP SECRET]',
+        '',
+        'BEGIN TRANSCRIPT',
+        '-----------------------------------------------',
+        'SPEAKER 1 [MATCH — CANOPY]:',
+        '  "The ledger moves Thursday. Usual drop."',
+        '',
+        'SPEAKER 2 [UNKNOWN]:',
+        '  "Confirmed. Courier is KESTREL?"',
+        '',
+        'SPEAKER 1:',
+        '  "KESTREL is offline. We\'re using the new channel."',
+        '',
+        'SPEAKER 2:',
+        '  "And OBSIDIAN?"',
+        '',
+        'SPEAKER 1:',
+        '  "OBSIDIAN is already there."',
+        '',
+        '[SIGNAL LOST]',
+        '-----------------------------------------------',
+        'See [comms_patterns.an] for pattern analysis.',
+        'See [directive_omega.sig] for standing order.',
+    ]},
+    'threat_assessment_r4.df': { name: 'threat_assessment_r4.df', classification: 'CLASSIFIED', lines: [
+        '═══════════════════════════════════════════════════',
+        '  THREAT ASSESSMENT — QUARTER 3, ROUND 4',
+        '═══════════════════════════════════════════════════',
+        '',
+        'OVERALL POSTURE:  ELEVATED',
+        '',
+        'Three parallel strands of activity converge on',
+        'a single dead-drop site, all referencing HELIOS.',
+        '',
+        'SCORING (0–10):',
+        '  Financing risk            : 7',
+        '  Travel/movement risk      : 6',
+        '  Communications security   : 8',
+        '  Operational tempo         : 9',
+        '',
+        'See [asset_network.map] and [financing_trail.led].',
+        '— end of assessment —',
+    ]},
+    'asset_network.map': { name: 'asset_network.map', classification: 'CLASSIFIED', lines: [
+        '[ASSET NETWORK MAP — SENSITIVE]',
+        '',
+        '  KARACHI → MERIDIAN [handler]',
+        '  BERLIN  → CANOPY [finance]',
+        '  VIENNA  → academic_cutout [redacted]',
+        '  LISBON  → drop_site_echo [closed]',
+        '  PNW     → OBSIDIAN [highest priority]',
+        '',
+        'EDGE WEIGHTS:',
+        '  Karachi → Berlin     : 42%',
+        '  Berlin  → Vienna     : 31%',
+        '  Vienna  → PNW        : 18%',
+        '  PNW     → Lisbon     : 9%',
+        '',
+        'See [financing_trail.led] for money flow.',
+    ]},
+    'field_report_karachi.txt': { name: 'field_report_karachi.txt', classification: 'CLASSIFIED', lines: [
+        'FIELD REPORT — KARACHI STATION',
+        'Date: 2026-07-30',
+        '',
+        'At 14:20 local, subject A-01 ("MERIDIAN") was observed',
+        'meeting with an unregistered freight agent at Berth 7.',
+        'Exchange lasted 11 minutes.',
+        '',
+        'RECOMMENDATION: Assume third-party surveillance.',
+        '',
+        'See [financing_trail.led] for fund movement.',
+        '— EOR —',
+    ]},
+    'field_report_berlin.txt': { name: 'field_report_berlin.txt', classification: 'CLASSIFIED', lines: [
+        'FIELD REPORT — BERLIN STATION',
+        'Date: 2026-08-02',
+        '',
+        'Subject A-02 ("CANOPY") entered safehouse at 21:14',
+        'local with two unidentified males. A courier later',
+        'handed over an envelope that was burned within 90s.',
+        '',
+        'ASSESSMENT: Financing handoff likely.',
+        'See [courier_manifest.txt] for transport details.',
+        '— EOR —',
+    ]},
+    'financing_trail.led': { name: 'financing_trail.led', classification: 'CLASSIFIED', lines: [
+        'FINANCING TRAIL — ANALYSIS NOTES',
+        'Ref: FTL-2026-Q3',
+        '',
+        '  Layer 1: "Meridian Consulting LLC" — Karachi',
+        '  Layer 2: "Canopy Holdings GmbH" — Berlin',
+        '  Layer 3: "Academica Förderverein e.V." — Vienna',
+        '  Layer 4: [UNKNOWN SPONSOR — see asset_network.map]',
+        '',
+        'TOTAL MOVED: approx. 4.2M EUR',
+        '',
+        'See [field_report_karachi.txt] for origin context.',
+        '— end of FTL-2026-Q3 —',
+    ]},
+    'comms_patterns.an': { name: 'comms_patterns.an', classification: 'CLASSIFIED', lines: [
+        'COMMS PATTERN ANALYSIS — CELL "NIGHTJAR"',
+        '',
+        'Baseline behavior:',
+        '  • Contact window: 02:00–04:00 local.',
+        '  • Message length: 40–80 chars. Never longer.',
+        '  • Channels rotate every 6–9 days.',
+        '',
+        'Anomaly: 2026-08-09 saw the first long-form message',
+        'in 4 months, containing the coordinates',
+        '47.6062 / -122.3321. This is deliberate.',
+        '',
+        'See [intercept_1442.log] for raw transcript.',
+        '— end of analysis —',
+    ]},
+    'courier_manifest.txt': { name: 'courier_manifest.txt', classification: 'CLASSIFIED', lines: [
+        'COURIER MANIFEST — FLIGHT NR. [REDACTED]',
+        'Departure: Vienna (VIE)',
+        '',
+        'PASSENGERS OF INTEREST:',
+        '  Seat 04A — "M. Wagner" (CANOPY alias #2)',
+        '  Seat 07F — courier, hand-carry only',
+        '',
+        'ARRIVAL CONTACT: Handed off case to unknown male in lot C.',
+        '',
+        'See [safehouse_registry.db] for known locations.',
+        '— end of manifest —',
+    ]},
+    'safehouse_registry.db': { name: 'safehouse_registry.db', classification: 'CLASSIFIED', lines: [
+        'SAFEHOUSE REGISTRY — INTERNAL ONLY',
+        '',
+        '  001  Karachi       "al-Fajr Trading" rear room',
+        '  002  Berlin        Kreuzberg str, 3rd floor',
+        '  003  Vienna        Academic annex, basement',
+        '  004  Lisbon        Closed 2025-11 — leak suspected',
+        '  005  [Pacific Northwest — coordinates withheld]',
+        '',
+        'See [courier_manifest.txt] and [directive_omega.sig].',
+        '— end of registry —',
+    ]},
+    'directive_omega.sig': { name: 'directive_omega.sig', classification: 'CLASSIFIED', lines: [
+        '╔════════════════════════════════════════════════════╗',
+        '║  DIRECTIVE OMEGA — EYES ONLY                       ║',
+        '║  Ref: DO-2026-0812                                 ║',
+        '╚════════════════════════════════════════════════════╝',
+        '',
+        '1. The dead-drop at 47.6062 / -122.3321 is PRIMARY.',
+        '',
+        '2. If the ledger is confirmed at primary, terminate',
+        '   the transfer. Do not copy. Do not negotiate.',
+        '',
+        '3. If OBSIDIAN is confirmed on-site, stand down.',
+        '',
+        '4. The ledger does not leave the continent.',
+        '',
+        'See [intercept_1442.log] for the trigger signal.',
+        '— end of directive —',
+    ]},
+
+    'audio_0321.wav': { name: 'audio_0321.wav', classification: 'AUDIO', duration: '00:47', lines: [
+        '[AUDIO LOG — 0321]',
+        '[Duration: 00:47] [Quality: poor]',
+        '[Collected: 2026-06-14, 02:38 UTC]',
+        '',
+        '[00:03] VOICE-A [male, accented]:',
+        '         "Package is moving. Usual route."',
+        '',
+        '[00:11] VOICE-B [female, clipped]:',
+        '         "Route through Vienna or Berlin?"',
+        '',
+        '[00:15] VOICE-A:',
+        '         "Vienna first. The academic handles the paperwork."',
+        '',
+        '[00:25] VOICE-A:',
+        '         "It won\'t get flagged. It never does."',
+        '',
+        '[00:38] VOICE-A:',
+        '         "<span class="redacted">OBSIDIAN.</span>"',
+        '',
+        '[00:40] [SIGNAL ENDS]',
+    ]},
+    'audio_0887.wav': { name: 'audio_0887.wav', classification: 'AUDIO', duration: '01:12', lines: [
+        '[AUDIO LOG — 0887]',
+        '[Duration: 01:12] [Quality: clear]',
+        '',
+        '[00:02] VOICE-A:',
+        '         "Ledger update is complete. Same key as before."',
+        '',
+        '[00:14] VOICE-B:',
+        '         "The accountant is nervous."',
+        '',
+        '[00:17] VOICE-A:',
+        '         "The accountant is paid to be nervous."',
+        '',
+        '[00:45] VOICE-B:',
+        '         "KESTREL out. New channel active next week."',
+        '',
+        '[01:08] [SIGNAL ENDS]',
+    ]},
+    'audio_1402.wav': { name: 'audio_1402.wav', classification: 'AUDIO', duration: '00:38', lines: [
+        '[AUDIO LOG — 1402]',
+        '[Duration: 00:38] [Quality: encrypted burst]',
+        '',
+        '[00:04] VOICE-A [garbled]:',
+        '         "—checkpoint cleared— crossing border—"',
+        '',
+        '[00:18] VOICE-B:',
+        '         "Copy. Proceed to drop site echo."',
+        '',
+        '[00:20] VOICE-A:',
+        '         "Drop site echo is closed. Leak suspected."',
+        '',
+        '[00:28] VOICE-B:',
+        '         "Then reroute to the academic."',
+        '',
+        '[00:34] [SIGNAL ENDS]',
+    ]},
+    'audio_1994.wav': { name: 'audio_1994.wav', classification: 'AUDIO', duration: '01:28', lines: [
+        '[AUDIO LOG — 1994]',
+        '[Duration: 01:28] [Quality: clear, single speaker]',
+        '',
+        '[00:02] VOICE-A [male, older, deliberate]:',
+        '         "This is a standing order. It goes to all',
+        '          cells with HELIOS knowledge."',
+        '',
+        '[00:14] VOICE-A:',
+        '         "The dead-drop is primary. Anything else is',
+        '          a decoy. The ledger does not leave the',
+        '          continent."',
+        '',
+        '[00:30] VOICE-A:',
+        '         "OBSIDIAN is not expendable."',
+        '',
+        '[00:58] VOICE-A:',
+        '         "Whatever the ledger says HELIOS was built',
+        '          for — it is the only surviving record."',
+        '',
+        '[01:14] VOICE-A:',
+        '         "Acknowledge receipt. Do not reply."',
+        '',
+        '[01:22] [SIGNAL ENDS]',
+    ]},
+};
+
+/* ============================================================
+   GAME STATE
+   ============================================================ */
+const NODE_DEFS = [
+    { ip: '192.168.1.1',   name: 'Gateway',        x: 70,  y: 125, online: true, difficulty: 1, files: ['gateway-config.txt', 'watchlist_alpha.sig'] },
+    { ip: '82.12.4.91',    name: 'Workstation-01', x: 210, y: 55,  online: true, difficulty: 1, files: ['workstation-notes.txt', 'courier_manifest.txt', 'audio_0321.wav'] },
+    { ip: '216.58.210.36', name: 'Mail Server',    x: 210, y: 125, online: true, difficulty: 2, files: ['mail-spool.txt', 'intercept_1442.log', 'comms_patterns.an', 'audio_0887.wav'] },
+    { ip: '104.22.3.19',   name: 'Research Node',  x: 210, y: 195, online: true, difficulty: 3, files: ['research-fragments.txt', 'threat_assessment_r4.df', 'field_report_karachi.txt', 'audio_1402.wav'] },
+    { ip: '45.77.13.88',   name: 'Proxy Relay',    x: 360, y: 90,  online: true, difficulty: 2, files: ['proxy-routes.txt', 'asset_network.map', 'safehouse_registry.db'] },
+    { ip: '159.89.2.14',   name: 'Blackvault',     x: 360, y: 195, online: true, difficulty: 4, files: [
+        'blackvault-manifest.txt','blackvault-whistle.txt','decrypted-payload.txt',
+        'cell_dossier_07.enc','field_report_berlin.txt','financing_trail.led',
+        'directive_omega.sig','audio_1994.wav',
+    ]},
+];
+
+function freshState() {
+    return {
+        traceLevel: 0, isTraced: false, gameOver: false, victory: false, freeRoamMode: false,
+        credits: 0, soundEnabled: BASE_CONFIG.SOUND_ENABLED_DEFAULT, routedVia: null,
+        nodes: NODE_DEFS.map(n => ({ ...n, files: [...n.files], owned: false, scannned: false, filesRead: [] })),
+        missions: [], stats: { completed: 0, failed: 0, started: Date.now() },
+        history: [], historyIdx: -1, connectedNodeIp: null,
+        downloadedFiles: [], discoveredLinks: [], unlockedFinalReport: false,
+        difficulty: 'easy',
+    };
+}
+
+let gameState = freshState();
+let connectedNode = null;
+let activeFile = null;
+let pendingOp = null;
+
+/* ============================================================
+   CHEATS
+   ============================================================ */
+const CHEATS = { godmode: false, turbo: false, xray: false, rainbow: false, used: [] };
+function saveCheats() { try { localStorage.setItem(BASE_CONFIG.CHEAT_KEY, JSON.stringify(CHEATS)); } catch (e) {} }
+function loadCheats() { try { const r = localStorage.getItem(BASE_CONFIG.CHEAT_KEY); if (r) Object.assign(CHEATS, JSON.parse(r)); } catch (e) {} }
+function updateCheatBadge() {
+    const active = CHEATS.godmode || CHEATS.turbo;
+    cheatBadge.classList.toggle('on', active);
+    cheatBadge.textContent = CHEATS.godmode ? '⚡ GOD MODE' : CHEATS.turbo ? '⚡ TURBO' : '⚡ CHEATS';
+}
+function delay(ms) { return CHEATS.turbo ? 0 : ms; }
+
+/* ============================================================
+   IN-FLIGHT OP
+   ============================================================ */
+function startOp(action, target, ms, callback) {
+    cancelOp();
+    const timerId = setTimeout(() => { pendingOp = null; callback(); }, ms);
+    pendingOp = { timerId, action, target };
+    return timerId;
+}
+function cancelOp() {
+    if (pendingOp) {
+        clearTimeout(pendingOp.timerId);
+        const { action, target } = pendingOp;
+        pendingOp = null;
+        return { action, target };
+    }
+    return null;
+}
+
+/* ============================================================
+   MISSIONS
+   ============================================================ */
+function buildMissions() {
+    const nodes = gameState.nodes;
+    const missions = [];
+    let id = 1;
+    const count = CONFIG.MISSION_COUNT;
+    const tierSize = CONFIG.MISSION_TIER_SIZE;
+
+    for (let i = 0; i < count; i++) {
+        const tier = Math.floor(i / tierSize);
+        const node = nodes[i % nodes.length];
+        let steps;
+        if (tier === 0) steps = [{ action: i % 2 === 0 ? 'probe' : 'crack', target: node.ip }];
+        else if (tier === 1) steps = [{ action: 'scan', target: node.ip }, { action: 'crack', target: node.ip }];
+        else if (tier === 2) steps = [
+            { action: 'scan', target: node.ip },
+            { action: 'crack', target: node.ip },
+            { action: 'decrypt', target: node.ip },
+        ];
+        else {
+            const alt = nodes[(i + 2) % nodes.length];
+            steps = [
+                { action: 'route', target: alt.ip },
+                { action: 'scan', target: node.ip },
+                { action: 'crack', target: node.ip },
+                { action: 'decrypt', target: node.ip },
+            ];
+        }
+        const verb = steps.map(s => s.action.toUpperCase()).join('→');
+        missions.push({
+            id, title: `Op ${id}: ${verb}`, desc: `Target ${node.ip} (${node.name})`,
+            steps, stepIdx: 0, status: id === 1 ? 'active' : 'locked',
+            reward: 60 + tier * 55,
+        });
+        id++;
+    }
+    return missions;
+}
+function currentMission() { return gameState.missions.find(m => m.status === 'active') || null; }
+
+function tryAdvanceMission(action, target) {
+    const m = currentMission();
+    if (!m || m.isFinal) return false;
+    const step = m.steps[m.stepIdx];
+    if (step.action !== action || step.target !== target) return false;
+    m.stepIdx++;
+    if (m.stepIdx >= m.steps.length) {
+        m.status = 'complete';
+        gameState.stats.completed++;
+        gameState.credits += m.reward;
+        const next = gameState.missions.find(x => x.status === 'locked');
+        if (next) next.status = 'active';
+        else enterFreeRoamMode();
+        gameState.traceLevel = clamp(gameState.traceLevel - CONFIG.TRACE_MISSION_REWARD, 0, 100);
+        log(`[✓] Objective complete: ${esc(m.title)} <span class='status-warn'>+${m.reward}cr</span>`, 'status-success');
+        Sound.ok();
+        if (gameState.traceLevel <= 0) gameState.isTraced = false;
+    } else {
+        const nextStep = m.steps[m.stepIdx];
+        log(`[»] Step ${m.stepIdx}/${m.steps.length} — next: <b>${nextStep.action} ${esc(nextStep.target)}</b>`, 'status-info');
+        Sound.key();
+    }
+    renderMissions();
+    renderKPIs();
+    return true;
+}
+
+/* ============================================================
+   FREE ROAM
+   ============================================================ */
+function enterFreeRoamMode() {
+    if (gameState.freeRoamMode) return;
+    gameState.freeRoamMode = true;
+    gameState.isTraced = false;
+    gameState.traceLevel = 0;
+    gameState.missions.push({
+        id: BASE_CONFIG.FINAL_MISSION_ID,
+        title: 'FINAL: EXFILTRATE',
+        desc: 'Recover the 6 key files (read or download)',
+        steps: [], stepIdx: 0, status: 'active',
+        reward: CONFIG.FINAL_REWARD, isFinal: true,
+    });
+    log('', 'status-muted');
+    log('════════════════════════════════════════════', 'status-gold');
+    log('  [FINAL PHASE] All tiered operations complete.', 'status-gold');
+    log('  Trace systems offline. You are untouchable.', 'status-gold');
+    log('  NEW OBJECTIVE: recover the 6 key files.', 'status-gold');
+    log('════════════════════════════════════════════', 'status-gold');
+    log('', 'status-muted');
+    freeRoamBadge.classList.add('on');
+    Sound.ok();
+    renderMissions();
+}
+
+function requiredProgress() {
+    let done = 0; const seen = new Set();
+    gameState.nodes.forEach(n => n.files.forEach(k => {
+        const entry = FILE_LIBRARY[k];
+        if (!entry || !CONFIG.REQUIRED_FILES.includes(entry.name) || seen.has(entry.name)) return;
+        const dl = gameState.downloadedFiles.includes(`${n.ip}::${entry.name}`);
+        const rd = n.filesRead.includes(entry.name);
+        if (dl || rd) { done++; seen.add(entry.name); }
+    }));
+    return { done, total: CONFIG.REQUIRED_FILES.length };
+}
+function dossierProgress() {
+    let done = 0; const seen = new Set();
+    gameState.nodes.forEach(n => n.files.forEach(k => {
+        const entry = FILE_LIBRARY[k];
+        if (!entry || !CONFIG.DOSSIER_FILES.includes(entry.name) || seen.has(entry.name)) return;
+        if (n.filesRead.includes(entry.name)) { done++; seen.add(entry.name); }
+    }));
+    return { done, total: CONFIG.DOSSIER_FILES.length };
+}
+function audioProgress() {
+    let done = 0; const seen = new Set();
+    gameState.nodes.forEach(n => n.files.forEach(k => {
+        const entry = FILE_LIBRARY[k];
+        if (!entry || !CONFIG.AUDIO_LOGS.includes(entry.name) || seen.has(entry.name)) return;
+        if (n.filesRead.includes(entry.name)) { done++; seen.add(entry.name); }
+    }));
+    return { done, total: CONFIG.AUDIO_LOGS.length };
+}
+function linkProgress() { return { done: gameState.discoveredLinks.length, total: CONFIG.LINK_TARGETS.length }; }
+
+function checkFinalObjective() {
+    const fm = gameState.missions.find(m => m.isFinal);
+    if (!fm || fm.status === 'complete') return;
+    const { done, total } = requiredProgress();
+    if (done >= total) {
+        fm.status = 'complete';
+        gameState.stats.completed++;
+        gameState.credits += fm.reward;
+        renderMissions();
+        renderKPIs();
+        triggerVictory();
+    }
+}
+
+/* ============================================================
+   LINK ANALYSIS
+   ============================================================ */
+function tryLink(fileA, fileB) {
+    const a = fileA.toLowerCase();
+    const b = fileB.toLowerCase();
+    const match = CONFIG.LINK_TARGETS.find(t =>
+        (t.a.toLowerCase() === a && t.b.toLowerCase() === b) ||
+        (t.a.toLowerCase() === b && t.b.toLowerCase() === a));
+    if (!match) return { ok: false, reason: 'no-match' };
+    const key = linkKey(match.a, match.b);
+    if (gameState.discoveredLinks.includes(key)) return { ok: false, reason: 'already-linked', match };
+    const haveA = isFileRead(match.a);
+    const haveB = isFileRead(match.b);
+    if (!haveA || !haveB) return { ok: false, reason: 'missing-evidence', missing: !haveA ? match.a : match.b };
+    gameState.discoveredLinks.push(key);
+    return { ok: true, match };
+}
+function isFileRead(filename) {
+    let found = false;
+    gameState.nodes.forEach(n => { if (n.filesRead.includes(filename)) found = true; });
+    return found;
+}
+function checkLinkCompletion() {
+    if (gameState.unlockedFinalReport) return;
+    if (gameState.discoveredLinks.length >= CONFIG.LINK_TARGETS.length) {
+        gameState.unlockedFinalReport = true;
+        log('', 'status-muted');
+        log('╔════════════════════════════════════════════════════╗', 'status-classified');
+        log('║  ★ LINK ANALYSIS COMPLETE — FULL PICTURE UNLOCKED ║', 'status-classified');
+        log('║  Use <b>report</b> to read the final assessment.    ║', 'status-classified');
+        log('╚════════════════════════════════════════════════════╝', 'status-classified');
+        Sound.classified();
+    }
+}
+
+/* ============================================================
+   ENDGAME
+   ============================================================ */
+function triggerVictory() {
+    if (gameState.victory) return;
+    gameState.victory = true;
+    gameState.gameOver = true;
+    input.disabled = true;
+    cancelOp();
+    const secs = Math.floor((Date.now() - gameState.stats.started) / 1000);
+    const mm = Math.floor(secs / 60); const ss = secs % 60;
+    const timeStr = mm > 0 ? `${mm}m ${ss}s` : `${ss}s`;
+    const { done, total } = requiredProgress();
+    const dos = dossierProgress(); const aud = audioProgress(); const lnk = linkProgress();
+    overlay.classList.add('victory');
+    goTitle.textContent = '★ CAMPAIGN COMPLETE ★';
+    goSubtitle.textContent = `Difficulty: ${CONFIG.name} · Helios exposed.`;
+    goStatsGrid.innerHTML = `
+        <div class="label">Time</div><div class="val">${timeStr}</div>
+        <div class="label">Missions</div><div class="val">${gameState.stats.completed}</div>
+        <div class="label">Credits</div><div class="val">${gameState.credits}cr</div>
+        <div class="label">Key files</div><div class="val">${done}/${total}</div>
+        <div class="label">Intel dossiers</div><div class="val" style="color:var(--classified);">${dos.done}/${dos.total}</div>
+        <div class="label">Audio logs</div><div class="val" style="color:var(--audio);">${aud.done}/${aud.total}</div>
+        <div class="label">Links found</div><div class="val" style="color:var(--cyan);">${lnk.done}/${lnk.total}</div>
+    `;
+    rebootBtn.textContent = 'NEW GAME';
+    overlay.style.display = 'flex';
+    Sound.victory();
+    if (tickHandle) { clearInterval(tickHandle); tickHandle = null; }
+}
+function triggerGameOver() {
+    gameState.gameOver = true;
+    input.disabled = true;
+    cancelOp();
+    const secs = Math.floor((Date.now() - gameState.stats.started) / 1000);
+    const mm = Math.floor(secs / 60); const ss = secs % 60;
+    const timeStr = mm > 0 ? `${mm}m ${ss}s` : `${ss}s`;
+    overlay.classList.remove('victory');
+    goTitle.textContent = 'CONNECTION TERMINATED';
+    goSubtitle.textContent = `System Traced on ${CONFIG.name}. Forced Logout.`;
+    goStatsGrid.innerHTML = `
+        <div class="label">Time</div><div class="val">${timeStr}</div>
+        <div class="label">Missions</div><div class="val">${gameState.stats.completed}</div>
+        <div class="label">Credits</div><div class="val">${gameState.credits}cr</div>
+    `;
+    rebootBtn.textContent = 'REBOOT';
+    overlay.style.display = 'flex';
+    Sound.trace();
+    if (tickHandle) { clearInterval(tickHandle); tickHandle = null; }
+}
+
+/* ============================================================
+   RENDER
+   ============================================================ */
+function renderMissions() {
+    const frag = document.createDocumentFragment();
+    gameState.missions.forEach(m => {
+        const div = document.createElement('div');
+        div.className = 'mission-item ' + m.status + (m.isFinal ? ' final' : '');
+        let bodyHtml;
+        if (m.isFinal) {
+            const { done, total } = requiredProgress();
+            const pct = total > 0 ? Math.floor((done / total) * 100) : 0;
+            bodyHtml = `<div class='steps'>Key files: <span class='status-gold'>${done}/${total} (${pct}%)</span></div>`;
+        } else {
+            bodyHtml = m.steps.map((s, i) => {
+                let cls = 'step-done';
+                if (m.status === 'active' && i === m.stepIdx) cls = 'step-active';
+                else if (m.status === 'active' && i > m.stepIdx) cls = 'step-pending';
+                return `<span class='${cls}'>${s.action} ${esc(s.target)}</span>`;
+            }).join(' → ');
+            bodyHtml = `<div class='steps'>${bodyHtml}</div>`;
+        }
+        div.innerHTML = `<b>${esc(m.title)}</b><br>${esc(m.desc)}${bodyHtml}`;
+        frag.appendChild(div);
+    });
+    missionsContainer.innerHTML = '';
+    missionsContainer.appendChild(frag);
+    activeMissionsCount.innerText = gameState.missions.filter(m => m.status === 'active').length;
+}
+
+function renderKPIs() {
+    traceDisplay.innerText = Math.floor(gameState.traceLevel) + '%';
+    traceBar.style.width = clamp(gameState.traceLevel, 0, 100) + '%';
+    creditsVal.innerText = gameState.credits;
+    const dos = dossierProgress(); const aud = audioProgress();
+    dossierVal.innerText = `${dos.done}/${dos.total}`;
+    audioVal.innerText = `${aud.done}/${aud.total} audio`;
+    diffVal.innerText = CONFIG.name;
+    diffPill.textContent = CONFIG.name;
+    diffPill.className = 'diff-pill diff-' + CONFIG.pill;
+    if (gameState.freeRoamMode) {
+        connStatus.innerText = 'OFFLINE'; connStatus.style.color = 'var(--gold)';
+    } else if (CHEATS.godmode) {
+        connStatus.innerText = 'GOD MODE'; connStatus.style.color = 'var(--gold)';
+    } else {
+        connStatus.innerText = gameState.isTraced ? 'TRACED' : 'SECURE';
+        connStatus.style.color = gameState.isTraced ? 'var(--danger)' : 'var(--accent-color)';
+    }
+    hostStatus.innerText = connectedNode ? connectedNode : '—';
+    hostStatus.style.color = connectedNode ? 'var(--cyan)' : 'var(--muted)';
+    promptLabel.textContent = connectedNode ? `user@${connectedNode}:~$` : 'user@skidnet:~$';
+    promptLabel.classList.toggle('connected', !!connectedNode);
+}
+
+function renderNodes() {
+    const frag = document.createDocumentFragment();
+    gameState.nodes.forEach(n => {
+        const d = document.createElement('div');
+        let cls = 'node-item ';
+        if (connectedNode === n.ip) cls += 'connected ';
+        else if (n.owned) cls += 'owned ';
+        else if (n.online) cls += 'online ';
+        else cls += 'offline ';
+        d.className = cls;
+        const routed = gameState.routedVia === n.ip ? ' <span class="status-warn">[ROUTE]</span>' : '';
+        const fileCount = (n.owned || CHEATS.xray) ? ` <span class="status-muted">(${n.files.length} file${n.files.length===1?'':'s'})</span>` : '';
+        const xrayTag = CHEATS.xray && !n.owned ? ` <span class="status-gold">[diff ${n.difficulty}]</span>` : '';
+        let tag = '';
+        if (n.owned) {
+            const unreadDos = n.files.filter(k => {
+                const e = FILE_LIBRARY[k];
+                return e && CONFIG.DOSSIER_FILES.includes(e.name) && !n.filesRead.includes(e.name);
+            }).length;
+            const unreadAud = n.files.filter(k => {
+                const e = FILE_LIBRARY[k];
+                return e && CONFIG.AUDIO_LOGS.includes(e.name) && !n.filesRead.includes(e.name);
+            }).length;
+            if (unreadDos > 0) tag += ` <span class="status-classified">[${unreadDos} dos]</span>`;
+            if (unreadAud > 0) tag += ` <span class="status-audio">[${unreadAud} aud]</span>`;
+        }
+        d.innerHTML = `${esc(n.ip)} — ${esc(n.name)}${routed}${fileCount}${xrayTag}${tag}`;
+        d.addEventListener('click', () => {
+            input.value = n.owned ? `connect ${n.ip}` : `probe ${n.ip}`;
+            input.focus();
+        });
+        frag.appendChild(d);
+    });
+    nodesContainer.innerHTML = '';
+    nodesContainer.appendChild(frag);
+}
+
+/* ============================================================
+   TRACE TICK
+   ============================================================ */
+let tickHandle = null;
+function startTick() {
+    if (tickHandle) clearInterval(tickHandle);
+    tickHandle = setInterval(() => {
+        if (gameState.gameOver) return;
+        if (gameState.freeRoamMode || CHEATS.godmode) {
+            if (gameState.traceLevel > 0) gameState.traceLevel = clamp(gameState.traceLevel - 2, 0, 100);
+            renderKPIs();
+            return;
+        }
+        if (gameState.isTraced) {
+            const rate = gameState.routedVia ? CONFIG.TRACE_RATE * CONFIG.ROUTE_MULTIPLIER : CONFIG.TRACE_RATE;
+            gameState.traceLevel = clamp(gameState.traceLevel + rate, 0, 100);
+            if (gameState.traceLevel >= 100) triggerGameOver();
+        } else if (gameState.traceLevel > 0) {
+            gameState.traceLevel = clamp(gameState.traceLevel - CONFIG.TRACE_DECAY, 0, 100);
+        }
+        renderKPIs();
+    }, CONFIG.TICK_MS);
+}
+
+/* ============================================================
+   MAP
+   ============================================================ */
+function drawMap() {
+    const c = mapCanvas; const x = c.getContext('2d');
+    const w = c.width, h = c.height;
+    x.clearRect(0, 0, w, h);
+    const gateway = gameState.nodes[0];
+    x.strokeStyle = '#1a3a3a'; x.lineWidth = 1;
+    gameState.nodes.slice(1).forEach(n => {
+        x.beginPath(); x.moveTo(gateway.x, gateway.y); x.lineTo(n.x, n.y); x.stroke();
+    });
+    gameState.nodes.forEach(n => {
+        const isRouted = gameState.routedVia === n.ip;
+        const isConnected = connectedNode === n.ip;
+        x.strokeStyle = isConnected ? '#00ff41' : (isRouted ? '#ffcc00' : '#00f2ff');
+        x.lineWidth = (isConnected || isRouted) ? 2 : 1;
+        x.beginPath(); x.arc(n.x, n.y, 6, 0, Math.PI * 2); x.stroke();
+        x.fillStyle = n.online ? '#00f2ff' : '#333';
+        x.beginPath(); x.arc(n.x, n.y, 2, 0, Math.PI * 2); x.fill();
+        x.fillStyle = '#e0e0e0'; x.font = '11px "Fira Code", monospace';
+        x.fillText(n.name, n.x + 12, n.y + 4);
+        x.fillStyle = '#888'; x.font = '9px "Fira Code", monospace';
+        x.fillText(n.ip, n.x + 12, n.y + 16);
+    });
+}
+
+/* ============================================================
+   GRAPH
+   ============================================================ */
+const graphHover = { node: null };
+function computeGraphLayout() {
+    const files = []; const seen = new Set();
+    gameState.nodes.forEach(n => n.files.forEach(k => {
+        const e = FILE_LIBRARY[k];
+        if (!e || seen.has(e.name)) return;
+        seen.add(e.name);
+        files.push({ name: e.name, classification: e.classification || null, read: n.filesRead.includes(e.name) });
+    }));
+    const cw = graphCanvas.width, ch = graphCanvas.height;
+    const cx = cw / 2, cy = ch / 2;
+    const radius = Math.min(cw, ch) * 0.36;
+    files.forEach((f, i) => {
+        const angle = (i / files.length) * Math.PI * 2 - Math.PI / 2;
+        f.gx = cx + Math.cos(angle) * radius;
+        f.gy = cy + Math.sin(angle) * radius;
+    });
+    return files;
+}
+function drawGraph() {
+    const x = graphCanvas.getContext('2d');
+    const w = graphCanvas.width, h = graphCanvas.height;
+    x.clearRect(0, 0, w, h);
+    x.strokeStyle = '#0d1a1a'; x.lineWidth = 1;
+    for (let i = 0; i < w; i += 40) { x.beginPath(); x.moveTo(i, 0); x.lineTo(i, h); x.stroke(); }
+    for (let j = 0; j < h; j += 40) { x.beginPath(); x.moveTo(0, j); x.lineTo(w, j); x.stroke(); }
+    const files = computeGraphLayout();
+    CONFIG.LINK_TARGETS.forEach(t => {
+        const key = linkKey(t.a, t.b);
+        const found = gameState.discoveredLinks.includes(key);
+        const a = files.find(f => f.name === t.a);
+        const b = files.find(f => f.name === t.b);
+        if (!a || !b) return;
+        if (found) {
+            x.strokeStyle = '#00ff41'; x.lineWidth = 2;
+            x.shadowColor = '#00ff41'; x.shadowBlur = 8;
+        } else {
+            x.strokeStyle = '#1a1a1a'; x.lineWidth = 1; x.shadowBlur = 0;
+        }
+        x.beginPath(); x.moveTo(a.gx, a.gy); x.lineTo(b.gx, b.gy); x.stroke();
+        x.shadowBlur = 0;
+    });
+    files.forEach(f => {
+        let fill, stroke;
+        if (f.classification === 'CLASSIFIED') {
+            stroke = f.read ? '#ff5f5f' : '#552020'; fill = f.read ? '#ff5f5f' : '#2a1010';
+        } else if (f.classification === 'AUDIO') {
+            stroke = f.read ? '#b366ff' : '#3a2050'; fill = f.read ? '#b366ff' : '#1a102a';
+        } else if (CONFIG.REQUIRED_FILES.includes(f.name)) {
+            stroke = f.read ? '#ffd966' : '#554411'; fill = f.read ? '#ffd966' : '#2a2008';
+        } else {
+            stroke = f.read ? '#00f2ff' : '#1a3a3a'; fill = f.read ? '#00f2ff' : '#0a1a1a';
+        }
+        x.beginPath(); x.arc(f.gx, f.gy, 7, 0, Math.PI * 2);
+        x.fillStyle = fill; x.fill();
+        x.strokeStyle = stroke; x.lineWidth = 2; x.stroke();
+        if (graphHover.node === f) {
+            x.strokeStyle = '#fff'; x.lineWidth = 2;
+            x.beginPath(); x.arc(f.gx, f.gy, 12, 0, Math.PI * 2); x.stroke();
+        }
+        x.fillStyle = f.read ? '#e0e0e0' : '#555';
+        x.font = '9px "Fira Code", monospace';
+        x.textAlign = 'center';
+        const shortName = f.name.length > 18 ? f.name.slice(0, 16) + '…' : f.name;
+        x.fillText(shortName, f.gx, f.gy + 20);
+        x.textAlign = 'left';
+    });
+    if (graphHover.node) {
+        const n = graphHover.node;
+        const label = n.name;
+        const stat = n.read ? 'READ' : 'UNREAD';
+        x.font = '11px "Fira Code", monospace';
+        const tw = x.measureText(label).width;
+        const twStat = x.measureText(stat).width;
+        const boxW = Math.max(tw, twStat) + 20; const boxH = 40;
+        let bx = n.gx + 14, by = n.gy - 20;
+        if (bx + boxW > w) bx = n.gx - boxW - 14;
+        if (by + boxH > h) by = h - boxH - 4;
+        x.fillStyle = 'rgba(0,0,0,0.9)'; x.fillRect(bx, by, boxW, boxH);
+        x.strokeStyle = '#00f2ff'; x.lineWidth = 1; x.strokeRect(bx, by, boxW, boxH);
+        x.fillStyle = '#00f2ff'; x.fillText(label, bx + 10, by + 16);
+        x.fillStyle = n.read ? '#00ff41' : '#888'; x.fillText(stat, bx + 10, by + 32);
+    }
+    const lnk = linkProgress();
+    const readCount = files.filter(f => f.read).length;
+    graphStats.textContent = `Links: ${lnk.done}/${lnk.total} · Files: ${readCount}/${files.length} read`;
+}
+function openGraph() { graphViewer.classList.add('open'); drawGraph(); input.blur(); }
+function closeGraph() { graphViewer.classList.remove('open'); input.focus(); }
+graphClose.addEventListener('click', closeGraph);
+graphViewer.addEventListener('click', (e) => { if (e.target === graphViewer) closeGraph(); });
+graphCanvas.addEventListener('mousemove', (e) => {
+    const rect = graphCanvas.getBoundingClientRect();
+    const mx = (e.clientX - rect.left) * (graphCanvas.width / rect.width);
+    const my = (e.clientY - rect.top) * (graphCanvas.height / rect.height);
+    const files = computeGraphLayout();
+    let hovered = null;
+    for (const f of files) {
+        if (Math.hypot(f.gx - mx, f.gy - my) < 14) { hovered = f; break; }
+    }
+    if (hovered !== graphHover.node) { graphHover.node = hovered; drawGraph(); }
+});
+graphCanvas.addEventListener('mouseleave', () => {
+    if (graphHover.node) { graphHover.node = null; drawGraph(); }
+});
+graphCanvas.addEventListener('click', () => {
+    if (!graphHover.node) return;
+    const name = graphHover.node.name;
+    let owner = null;
+    gameState.nodes.forEach(n => n.files.forEach(k => {
+        const e = FILE_LIBRARY[k];
+        if (e && e.name === name) owner = n;
+    }));
+    if (owner && owner.owned) { closeGraph(); openFile(owner.ip, name); }
+    else if (owner) log(`[i] ${esc(name)} is on ${esc(owner.ip)} — crack it first.`, 'status-muted');
+});
+
+/* ============================================================
+   FILE VIEWER
+   ============================================================ */
+function findFileOwner(filename) {
+    let owner = null;
+    gameState.nodes.forEach(n => n.files.forEach(k => {
+        const e = FILE_LIBRARY[k];
+        if (e && e.name === filename) owner = n;
+    }));
+    return owner;
+}
+function injectXrefs(html) {
+    return html.replace(/\[([A-Za-z0-9_\-\.]+\.[A-Za-z0-9]+)\]/g, (match, filename) => {
+        const owner = findFileOwner(filename);
+        if (!owner) return `<span class="xref-missing">[${filename}]</span>`;
+        const haveIt = owner.filesRead.includes(filename) || owner.owned;
+        const cls = haveIt ? 'xref' : 'xref-missing';
+        const title = haveIt ? `Open ${filename} (on ${owner.ip})` : `${filename} not yet recovered`;
+        return `<span class="${cls}" data-xref="${esc(filename)}" title="${esc(title)}">[${filename}]</span>`;
+    });
+}
+function openFile(nodeIp, filename) {
+    const node = findNode(nodeIp);
+    if (!node) return fail(`Node not found: ${nodeIp}`);
+    if (!node.owned) return fail(`Access denied. Crack ${nodeIp} first.`);
+    const key = node.files.find(f => {
+        const entry = FILE_LIBRARY[f];
+        return entry && (entry.name === filename || f === filename);
+    });
+    if (!key) return fail(`No such file: ${filename}`);
+    const entry = FILE_LIBRARY[key];
+    activeFile = { nodeIp, filename: entry.name, key };
+    const isClassified = entry.classification === 'CLASSIFIED';
+    const isAudio = entry.classification === 'AUDIO';
+    fvWindow.classList.toggle('classified', isClassified);
+    fvWindow.classList.toggle('audio', isAudio);
+    let titlePrefix = '';
+    if (isClassified) titlePrefix = '[CLASSIFIED] ';
+    else if (isAudio) titlePrefix = '[AUDIO] ';
+    const waveform = isAudio ? '<span class="waveform"><span></span><span></span><span></span><span></span><span></span></span>' : '';
+    fvTitle.innerHTML = titlePrefix + esc(entry.name) + ' — ' + esc(node.ip) + waveform;
+    fvBody.innerHTML = entry.lines.map(line => {
+        const escaped = esc(line);
+        const unredacted = escaped
+            .replace(/&lt;span class="redacted"&gt;/g, '<span class="redacted">')
+            .replace(/&lt;\/span&gt;/g, '</span>');
+        const withXrefs = injectXrefs(unredacted);
+        if (isAudio && /^\[\d+:\d+\]/.test(line)) return `<span class="audio-line">${withXrefs}</span>`;
+        return withXrefs;
+    }).join('\n');
+    fvMeta.textContent = `${entry.lines.length} lines · ${node.name}` +
+        (isClassified ? ' · EYES ONLY' : '') +
+        (isAudio ? ` · ${entry.duration || '—'}` : '');
+    if (!node.filesRead.includes(entry.name)) {
+        node.filesRead.push(entry.name);
+        if (isClassified) { Sound.classified(); const dos = dossierProgress();
+            log(`[⚠] CLASSIFIED dossier recovered: ${esc(entry.name)} (${dos.done}/${dos.total})`, 'status-classified');
+        } else if (isAudio) { Sound.audio(); const aud = audioProgress();
+            log(`[♪] AUDIO LOG recovered: ${esc(entry.name)} (${aud.done}/${aud.total})`, 'status-audio');
+        } else if (gameState.freeRoamMode && CONFIG.REQUIRED_FILES.includes(entry.name)) {
+            log(`[★] Key file read: ${esc(entry.name)} — counted.`, 'status-gold');
+            checkFinalObjective();
+        }
+        renderNodes(); renderKPIs();
+    }
+    fileViewer.classList.add('open');
+    if (!isClassified && !isAudio) Sound.file();
+    input.blur();
+}
+function closeFile() {
+    fileViewer.classList.remove('open');
+    activeFile = null;
+    input.focus();
+}
+fvClose.addEventListener('click', closeFile);
+fileViewer.addEventListener('click', (e) => { if (e.target === fileViewer) closeFile(); });
+fvBody.addEventListener('click', (e) => {
+    const target = e.target.closest('.xref');
+    if (!target) return;
+    const filename = target.getAttribute('data-xref');
+    if (!filename) return;
+    const owner = findFileOwner(filename);
+    if (!owner) return;
+    if (!owner.owned) { log(`[i] ${esc(filename)} is on ${esc(owner.ip)} — crack it first.`, 'status-muted'); return; }
+    closeFile();
+    setTimeout(() => openFile(owner.ip, filename), 50);
+});
+
+/* ============================================================
+   FINAL REPORT
+   ============================================================ */
+function buildFinalReport() {
+    const dos = dossierProgress(); const aud = audioProgress(); const lnk = linkProgress();
+    const { done: keysDone, total: keysTotal } = requiredProgress();
+    const complete = dos.done === dos.total && aud.done === aud.total && lnk.done === lnk.total;
+    const lines = [];
+    lines.push('╔════════════════════════════════════════════════════╗');
+    lines.push('║  FINAL INTEL ASSESSMENT — OPERATION HELIOS         ║');
+    lines.push('║  Classification: EYES ONLY                         ║');
+    lines.push(`║  Difficulty: ${CONFIG.name.padEnd(38)}║`);
+    lines.push('╚════════════════════════════════════════════════════╝');
+    lines.push('');
+    lines.push('RECOVERED MATERIAL:');
+    lines.push(`  Key files        : ${keysDone}/${keysTotal}`);
+    lines.push(`  Intel dossiers   : ${dos.done}/${dos.total}`);
+    lines.push(`  Audio logs       : ${aud.done}/${aud.total}`);
+    lines.push(`  Link analysis    : ${lnk.done}/${lnk.total}`);
+    lines.push('');
+    lines.push('────────────────────────────────────────────────────');
+    lines.push('FINDINGS');
+    lines.push('────────────────────────────────────────────────────');
+    lines.push('');
+    lines.push('1. FICTIONAL SUBJECT NETWORK');
+    lines.push('   Four designations (MERIDIAN, CANOPY, KESTREL,');
+    lines.push('   OBSIDIAN) form a rotating cell.');
+    lines.push('');
+    lines.push('2. FINANCING RAIL');
+    lines.push('   ~4.2M EUR through three-layer shell structure.');
+    lines.push('   Vienna entity is the choke point.');
+    lines.push('');
+    lines.push('3. DEAD-DROP COORDINATES');
+    lines.push('   Primary: lat 47.6062, lon -122.3321.');
+    lines.push('   Ledger moves on alternating Thursdays.');
+    lines.push('');
+    lines.push('4. AUDIO EVIDENCE');
+    lines.push('   Four intercepts confirm the pattern. AUDIO_1994');
+    lines.push('   contains the standing order.');
+    lines.push('');
+    lines.push('5. LINK ANALYSIS RESULT');
+    if (lnk.done >= lnk.total) lines.push('   Full picture assembled.');
+    else lines.push('   Partial. Additional links required.');
+    lines.push('');
+    lines.push('────────────────────────────────────────────────────');
+    lines.push('CLOSING NOTE');
+    lines.push('────────────────────────────────────────────────────');
+    lines.push('');
+    if (complete) lines.push('   ★ PERFECT RECOVERY — every source cross-verified.');
+    else lines.push('   Partial assessment. Continued collection advised.');
+    lines.push('');
+    lines.push('— end of assessment —');
+    return lines;
+}
+
+/* ============================================================
+   COMMANDS
+   ============================================================ */
+const COMMANDS = {
+    help() {
+        log('Available commands:', 'status-info');
+        log('  help                 — show this list');
+        log('  difficulty [mode]    — show or change difficulty');
+        log('  scan / probe / crack / connect / disconnect / abort');
+        log('  ls / cat / open / download');
+        log('  dossiers / audio / link / links / graph / report');
+        log('  decrypt / route / unroute / logs / map / missions');
+        log('  progress / credits / ip / sound / cheat');
+        log('  save / load / reset / clear');
+        log('', 'status-muted');
+        log(`Difficulty: <b>${CONFIG.name}</b> — ${CONFIG.description}`, 'status-muted');
+        log('Files with [filename.ext] are clickable cross-references.', 'status-muted');
+        log('Type <b>ip</b> to display your public IP again.', 'status-muted');
+    },
+
+    ip() {
+        fetchVisitorIP().then(r => {
+            if (r && r.ip) log(`[NET] Your public IP: <b>${esc(r.ip)}</b>`, 'status-info');
+        });
+    },
+
+    difficulty(arg) {
+        if (!arg) {
+            log(`Current difficulty: <b>${CONFIG.name}</b>`, 'status-warn');
+            log(`  ${CONFIG.description}`, 'status-muted');
+            log('');
+            log('Available modes:', 'status-info');
+            Object.entries(DIFFICULTIES).forEach(([key, d]) => {
+                const cur = key === gameState.difficulty ? ' ← current' : '';
+                log(`  <b>${key}</b> — ${d.name} (${d.MISSION_COUNT} missions)${cur}`);
+                log(`     ${d.description}`, 'status-muted');
+            });
+            log('');
+            log('Usage: <b>difficulty &lt;easy|normal|tough&gt;</b>', 'status-muted');
+            log('Changing mid-run <span class="status-warn">resets your save</span>.', 'status-warn');
+            return;
+        }
+        const key = arg.toLowerCase();
+        if (!DIFFICULTIES[key]) return fail(`Unknown difficulty: ${esc(key)}`);
+        if (key === gameState.difficulty) return log(`Already on ${CONFIG.name}.`, 'status-muted');
+        log(`[!] Switching to <b>${DIFFICULTIES[key].name}</b> — progress will reset.`, 'status-warn');
+        try { localStorage.setItem(BASE_CONFIG.DIFF_KEY, key); } catch (e) {}
+        try { localStorage.removeItem(BASE_CONFIG.SAVE_KEY); } catch (e) {}
+        setTimeout(() => location.reload(), 2000);
+    },
+
+    scan(arg) {
+        if (arg) {
+            const n = findNode(arg);
+            if (!n) return fail(`Host unreachable: ${arg}`);
+            if (!n.online) return fail(`Host offline: ${arg}`);
+            n.scannned = true;
+            log(`Scanning ${esc(arg)} (${esc(n.name)})...`, 'status-info');
+            startOp('scan', arg, delay(CONFIG.SCAN_DELAY), () => {
+                log(`  ${esc(n.name)} · difficulty ${n.difficulty} · ports: 22, 80, 443`, 'status-success');
+                if (!tryAdvanceMission('scan', arg)) log('[i] Scan complete — no mission step matched.', 'status-muted');
+                renderNodes();
+            });
+            return;
+        }
+        log('Scanning network...', 'status-info');
+        startOp('scan', '*', delay(CONFIG.SCAN_DELAY), () => {
+            const online = gameState.nodes.filter(n => n.online);
+            log(`Found ${online.length} online node(s):`, 'status-success');
+            online.forEach(n => log(`  ${esc(n.ip)}  ${esc(n.name)}`));
+        });
+    },
+    probe(arg) {
+        if (!arg) return fail('Error: IP required');
+        const n = findNode(arg);
+        if (!n || !n.online) return fail(`Host unreachable: ${arg}`);
+        gameState.isTraced = true;
+        connStatus.innerText = 'TRACED';
+        log(`Probing ${esc(arg)}...`, 'status-info');
+        Sound.warn();
+        startOp('probe', arg, delay(CONFIG.PROBE_DELAY), () => {
+            log(`Vulnerability found on ${esc(arg)}: Port 22 open`, 'status-success');
+            if (!tryAdvanceMission('probe', arg)) {
+                log('[i] Probe complete — not the current objective.', 'status-muted');
+                gameState.traceLevel = clamp(gameState.traceLevel + CONFIG.PENALTY_PROBE, 0, 100);
+            }
+        });
+    },
+    crack(arg) {
+        if (!arg) return fail('Error: IP required');
+        const n = findNode(arg);
+        if (!n || !n.online) return fail(`Host unreachable: ${arg}`);
+        if (n.owned) return log(`Already cracked: ${esc(arg)}`, 'status-muted');
+        gameState.isTraced = true;
+        connStatus.innerText = 'TRACED';
+        log(`Cracking ${esc(arg)}...`, 'status-info');
+        Sound.warn();
+        const bar = makeProgressBar();
+        startOp('crack', arg, delay(CONFIG.CRACK_DELAY), () => {
+            bar.finish();
+            if (CONFIG.ICE_FAIL_CHANCE > 0 && Math.random() < CONFIG.ICE_FAIL_CHANCE) {
+                const penalty = n.difficulty * 8;
+                gameState.traceLevel = clamp(gameState.traceLevel + penalty, 0, 100);
+                return fail(`Access DENIED on ${esc(arg)} — ICE rejected. Trace +${penalty}%.`);
+            }
+            n.owned = true;
+            log(`Access granted to ${esc(arg)} — ${n.files.length} file(s) found.`, 'status-success');
+            log(`[i] Try <b>connect ${esc(arg)}</b> then <b>ls</b>`, 'status-muted');
+            if (!tryAdvanceMission('crack', arg)) {
+                log('[i] Cracked — not the current objective.', 'status-muted');
+                gameState.traceLevel = clamp(gameState.traceLevel + CONFIG.PENALTY_CRACK, 0, 100);
+            }
+            renderNodes();
+        });
+    },
+    connect(arg) {
+        if (!arg) return fail('Error: IP required');
+        const n = findNode(arg);
+        if (!n) return fail(`Host unreachable: ${arg}`);
+        if (!n.owned) return fail(`Access denied. Crack ${arg} first.`);
+        connectedNode = n.ip;
+        gameState.connectedNodeIp = n.ip;
+        log(`[+] Connected to ${esc(n.ip)} (${esc(n.name)})`, 'status-success');
+        log(`[i] ${n.files.length} file(s) available — try <b>ls</b>`, 'status-muted');
+        Sound.ok();
+        renderNodes(); renderKPIs();
+    },
+    disconnect() {
+        const killed = cancelOp();
+        if (!connectedNode && !gameState.isTraced && !killed) return log('Not connected to any host.', 'status-muted');
+        if (gameState.isTraced) {
+            gameState.isTraced = false;
+            const dropped = gameState.traceLevel;
+            gameState.traceLevel = clamp(gameState.traceLevel - CONFIG.TRACE_DISCONNECT_RELIEF, 0, 100);
+            log(`[!] Session dropped — trace aborted at ${Math.floor(dropped)}%.`, 'status-warn');
+            log(`[i] Trace reduced to ${Math.floor(gameState.traceLevel)}%.`, 'status-info');
+            Sound.warn();
+        }
+        if (killed) log(`[!] Killed in-flight ${esc(killed.action)} on ${esc(killed.target)}.`, 'status-warn');
+        if (connectedNode) {
+            log(`[-] Disconnected from ${esc(connectedNode)}`, 'status-info');
+            connectedNode = null;
+            gameState.connectedNodeIp = null;
+        }
+        renderNodes(); renderKPIs();
+    },
+    abort() {
+        if (!gameState.isTraced && !pendingOp) return log('No active trace to abort.', 'status-muted');
+        const killed = cancelOp();
+        if (gameState.isTraced) gameState.isTraced = false;
+        gameState.traceLevel = clamp(gameState.traceLevel - CONFIG.TRACE_ABORT_RELIEF, 0, 100);
+        log(`[!] TRACE ABORTED — dropped to ${Math.floor(gameState.traceLevel)}%.`, 'status-success');
+        if (killed) log(`[!] Killed in-flight ${esc(killed.action)} on ${esc(killed.target)}.`, 'status-warn');
+        Sound.ok();
+        renderKPIs();
+    },
+    ls() {
+        if (!connectedNode) return fail('Not connected. Use <b>connect &lt;ip&gt;</b> first.');
+        const n = findNode(connectedNode);
+        if (!n || !n.owned) return fail('Connection lost.');
+        log(`Files on ${esc(n.ip)} (${esc(n.name)}):`, 'status-info');
+        if (!n.files.length) return log('  (no files)', 'status-muted');
+        n.files.forEach(key => {
+            const entry = FILE_LIBRARY[key];
+            if (!entry) return;
+            const isKey = CONFIG.REQUIRED_FILES.includes(entry.name);
+            const isDossier = CONFIG.DOSSIER_FILES.includes(entry.name);
+            const isAudio = CONFIG.AUDIO_LOGS.includes(entry.name);
+            const read = n.filesRead.includes(entry.name) ? ' <span class="status-muted">[read]</span>' : '';
+            const downloaded = gameState.downloadedFiles.includes(`${n.ip}::${entry.name}`) ? ' <span class="status-success">[↓]</span>' : '';
+            let tag = '';
+            if (isDossier) tag = ' <span class="status-classified">[CLASSIFIED]</span>';
+            else if (isAudio) tag = ' <span class="status-audio">[AUDIO]</span>';
+            else if (isKey) tag = ' <span class="status-gold">[★]</span>';
+            log(`  ${esc(entry.name)}${tag}${read}${downloaded} <span class="status-muted">(${entry.lines.length} lines)</span>`);
+        });
+    },
+    cat(arg) {
+        if (!connectedNode) return fail('Not connected. Use <b>connect &lt;ip&gt;</b> first.');
+        if (!arg) return fail('Error: filename required');
+        const n = findNode(connectedNode);
+        const entry = resolveFile(n, arg);
+        if (!entry) return fail(`No such file: ${esc(arg)}`);
+        const isClassified = entry.classification === 'CLASSIFIED';
+        const isAudio = entry.classification === 'AUDIO';
+        const prefix = isClassified ? '[CLASSIFIED] ' : (isAudio ? '[AUDIO] ' : '');
+        log(`--- ${prefix}${esc(entry.name)} ---`, isClassified ? 'status-classified' : (isAudio ? 'status-audio' : 'status-info'));
+        entry.lines.forEach(line => {
+            if (isAudio && /^\[\d+:\d+\]/.test(line)) log(line, 'status-audio', { asText: false });
+            else log(line, '', { asText: false });
+        });
+        log(`--- end ---`, 'status-info');
+        if (!n.filesRead.includes(entry.name)) {
+            n.filesRead.push(entry.name);
+            if (isClassified) { Sound.classified(); const dos = dossierProgress();
+                log(`[⚠] CLASSIFIED dossier recovered: ${esc(entry.name)} (${dos.done}/${dos.total})`, 'status-classified');
+            } else if (isAudio) { Sound.audio(); const aud = audioProgress();
+                log(`[♪] AUDIO LOG recovered: ${esc(entry.name)} (${aud.done}/${aud.total})`, 'status-audio');
+            } else if (gameState.freeRoamMode && CONFIG.REQUIRED_FILES.includes(entry.name)) {
+                log(`[★] Key file read: ${esc(entry.name)} — counted.`, 'status-gold');
+                checkFinalObjective();
+            }
+            renderNodes(); renderKPIs();
+        }
+    },
+    open(arg) {
+        if (!connectedNode) return fail('Not connected. Use <b>connect &lt;ip&gt;</b> first.');
+        if (!arg) return fail('Error: filename required');
+        const n = findNode(connectedNode);
+        const entry = resolveFile(n, arg);
+        if (!entry) return fail(`No such file: ${esc(arg)}`);
+        openFile(n.ip, entry.name);
+    },
+    download(arg) {
+        if (!connectedNode) return fail('Not connected. Use <b>connect &lt;ip&gt;</b> first.');
+        if (!arg) return fail('Error: filename required');
+        const n = findNode(connectedNode);
+        const entry = resolveFile(n, arg);
+        if (!entry) return fail(`No such file: ${esc(arg)}`);
+        const dlKey = `${n.ip}::${entry.name}`;
+        const isNew = !gameState.downloadedFiles.includes(dlKey);
+        const isClassified = entry.classification === 'CLASSIFIED';
+        const isAudio = entry.classification === 'AUDIO';
+        const base = isClassified ? 250 : (isAudio ? 150 : 25);
+        const value = isNew ? (base + entry.lines.length * 3) : 5;
+        if (isNew) gameState.downloadedFiles.push(dlKey);
+        gameState.credits += value;
+        const prefix = isClassified ? '[CLASSIFIED] ' : (isAudio ? '[AUDIO] ' : '');
+        log(`[↓] Downloaded ${prefix}${esc(entry.name)} <span class="status-warn">+${value}cr</span>`,
+            isClassified ? 'status-classified' : (isAudio ? 'status-audio' : 'status-success'));
+        if (!n.filesRead.includes(entry.name)) n.filesRead.push(entry.name);
+        Sound.ok();
+        renderKPIs(); renderNodes();
+        if (gameState.freeRoamMode) {
+            const { done, total } = requiredProgress();
+            log(`[i] Key files: <b>${done}/${total}</b>`, 'status-gold');
+            checkFinalObjective();
+        }
+    },
+    dossiers() {
+        const dos = dossierProgress();
+        log(`╔═══ INTEL DOSSIERS (${dos.done}/${dos.total}) ═══╗`, 'status-classified');
+        CONFIG.DOSSIER_FILES.forEach((filename, i) => {
+            let owner = null;
+            gameState.nodes.forEach(n => n.files.forEach(k => {
+                const e = FILE_LIBRARY[k]; if (e && e.name === filename) owner = n;
+            }));
+            const read = owner && owner.filesRead.includes(filename);
+            const idx = String(i + 1).padStart(2, '0');
+            const status = read ? '<span class="status-success">[RECOVERED]</span>' : '<span class="status-muted">[MISSING]</span>';
+            const loc = read && owner ? `<span class="status-muted">← ${esc(owner.name)}</span>` : '<span class="status-muted">← ???</span>';
+            log(`  ${idx}. ${esc(filename)} ${status} ${loc}`);
+        });
+        log('╚═══════════════════════════════════╝', 'status-classified');
+    },
+    audio() {
+        const aud = audioProgress();
+        log(`╔═══ AUDIO LOGS (${aud.done}/${aud.total}) ═══╗`, 'status-audio');
+        CONFIG.AUDIO_LOGS.forEach((filename, i) => {
+            let owner = null;
+            gameState.nodes.forEach(n => n.files.forEach(k => {
+                const e = FILE_LIBRARY[k]; if (e && e.name === filename) owner = n;
+            }));
+            const read = owner && owner.filesRead.includes(filename);
+            const idx = String(i + 1).padStart(2, '0');
+            const status = read ? '<span class="status-success">[RECOVERED]</span>' : '<span class="status-muted">[MISSING]</span>';
+            const loc = read && owner ? `<span class="status-muted">← ${esc(owner.name)}</span>` : '<span class="status-muted">← ???</span>';
+            log(`  ${idx}. ${esc(filename)} ${status} ${loc}`);
+        });
+        log('╚═══════════════════════════════════╝', 'status-audio');
+    },
+    link() {
+        const lastCmd = gameState.history[gameState.history.length - 1] || '';
+        const parts = lastCmd.split(/\s+/);
+        if (parts.length < 3) return fail('Usage: <b>link &lt;fileA&gt; &lt;fileB&gt;</b>');
+        const a = parts[1], b = parts[2];
+        const result = tryLink(a, b);
+        if (result.ok) {
+            log(`[⟷] LINK ESTABLISHED: ${esc(result.match.a)} ↔ ${esc(result.match.b)}`, 'status-info');
+            log(`    ${esc(result.match.label)}`, 'status-muted');
+            Sound.link();
+            checkLinkCompletion();
+            renderKPIs();
+        } else if (result.reason === 'already-linked') log(`[i] Link already recorded.`, 'status-muted');
+        else if (result.reason === 'missing-evidence') fail(`Missing evidence: ${esc(result.missing)} not yet recovered.`);
+        else fail(`No analytical link between those files.`);
+    },
+    links() {
+        const lnk = linkProgress();
+        log(`╔═══ LINK ANALYSIS (${lnk.done}/${lnk.total}) ═══╗`, 'status-info');
+        CONFIG.LINK_TARGETS.forEach((t, i) => {
+            const key = linkKey(t.a, t.b);
+            const found = gameState.discoveredLinks.includes(key);
+            const idx = String(i + 1).padStart(2, '0');
+            if (found) {
+                log(`  ${idx}. <span class="status-success">${esc(t.a)} ↔ ${esc(t.b)}</span>`);
+                log(`      ${esc(t.label)}`, 'status-muted');
+            } else log(`  ${idx}. <span class="status-muted">??? ↔ ???</span>`);
+        });
+        log('╚═══════════════════════════════════╝', 'status-info');
+        log('Tip: type <b>graph</b> to see a visual map.', 'status-muted');
+    },
+    graph() { openGraph(); },
+    report() {
+        if (!gameState.unlockedFinalReport) return fail('Final report locked. Establish all links first.');
+        const lines = buildFinalReport();
+        log('', 'status-muted');
+        lines.forEach(line => {
+            if (line.startsWith('╔') || line.startsWith('╚')) log(line, 'status-classified');
+            else if (line.startsWith('★')) log(line, 'status-gold');
+            else if (line.startsWith('─')) log(line, 'status-muted');
+            else if (/^\d+\./.test(line)) log(line, 'status-info');
+            else log(line);
+        });
+    },
+    decrypt(arg) {
+        if (!arg) return fail('Error: IP required');
+        const n = findNode(arg);
+        if (!n || !n.online) return fail(`Host unreachable: ${arg}`);
+        gameState.isTraced = true;
+        log(`Decrypting data on ${esc(arg)}...`, 'status-info');
+        const bar = makeProgressBar();
+        startOp('decrypt', arg, delay(CONFIG.DECRYPT_DELAY), () => {
+            bar.finish();
+            log(`Decryption complete: ${esc(arg)}`, 'status-success');
+            if (!tryAdvanceMission('decrypt', arg)) {
+                log('[i] Decrypted — not the current objective.', 'status-muted');
+                gameState.traceLevel = clamp(gameState.traceLevel + CONFIG.PENALTY_DECRYPT, 0, 100);
+            }
+        });
+    },
+    route(arg) {
+        if (!arg) return fail('Error: IP required');
+        const n = findNode(arg);
+        if (!n || !n.online) return fail(`Host unreachable: ${arg}`);
+        if (n.ip === gameState.nodes[0].ip) return fail('Cannot route via gateway.');
+        gameState.routedVia = n.ip;
+        log(`Routing traffic via ${esc(n.ip)} (${esc(n.name)}) — trace multiplier ${CONFIG.ROUTE_MULTIPLIER}.`, 'status-warn');
+        renderNodes();
+        if (!tryAdvanceMission('route', arg)) log('[i] Route active — not the current objective.', 'status-muted');
+    },
+    unroute() {
+        if (!gameState.routedVia) return log('No active route.', 'status-muted');
+        log(`Route via ${esc(gameState.routedVia)} cleared.`, 'status-info');
+        gameState.routedVia = null;
+        renderNodes();
+    },
+    logs() {
+        log('Node registry:', 'status-info');
+        gameState.nodes.forEach(n => {
+            const tag = n.owned ? '[◆]' : (n.online ? '[●]' : '[○]');
+            log(`  ${tag} ${esc(n.ip)}  ${esc(n.name)}  (diff ${n.difficulty})`);
+        });
+    },
+    map() {
+        mapDisplay.style.display = mapDisplay.style.display === 'block' ? 'none' : 'block';
+        if (mapDisplay.style.display === 'block') {
+            const parentW = mapDisplay.clientWidth;
+            mapCanvas.width = Math.max(320, parentW);
+            mapCanvas.height = CONFIG.MAP_HEIGHT;
+            drawMap();
+        }
+    },
+    missions() {
+        const m = currentMission();
+        if (!m) return log('No active mission.', 'status-muted');
+        log(`Active: ${esc(m.title)}`, m.isFinal ? 'status-gold' : 'status-warn');
+        log(`Target: ${esc(m.desc)}`);
+        if (m.isFinal) {
+            const { done, total } = requiredProgress();
+            log(`Progress: <b>${done}/${total}</b> key files recovered`, 'status-gold');
+        } else {
+            const step = m.steps[m.stepIdx];
+            log(`Next step: <b>${step.action} ${esc(step.target)}</b>`, 'status-info');
+        }
+    },
+    progress() {
+        const { done, total } = requiredProgress();
+        const dos = dossierProgress(); const aud = audioProgress(); const lnk = linkProgress();
+        const read = gameState.nodes.reduce((n, node) => n + node.filesRead.length, 0);
+        log('Network progress:', 'status-info');
+        log(`  Key files:        <b>${done}/${total}</b>`, done >= total ? 'status-success' : 'status-gold');
+        log(`  Intel dossiers:   <b>${dos.done}/${dos.total}</b>`, dos.done >= dos.total ? 'status-success' : 'status-classified');
+        log(`  Audio logs:       <b>${aud.done}/${aud.total}</b>`, aud.done >= aud.total ? 'status-success' : 'status-audio');
+        log(`  Link analysis:    <b>${lnk.done}/${lnk.total}</b>`, lnk.done >= lnk.total ? 'status-success' : 'status-info');
+        log(`  Files read:       <b>${read}</b>`, 'status-muted');
+        log(`  Nodes owned:      <b>${gameState.nodes.filter(n => n.owned).length}/${gameState.nodes.length}</b>`, 'status-muted');
+        if (gameState.unlockedFinalReport) log('  → Type <b>report</b> to read the final intel assessment.', 'status-gold');
+    },
+    credits() { log(`Credits: <b>${gameState.credits}</b>`, 'status-warn'); },
+    sound() {
+        const on = Sound.toggle();
+        gameState.soundEnabled = on;
+        log(`Sound ${on ? 'enabled' : 'disabled'}.`, 'status-info');
+    },
+    cheat(arg) {
+        const list = [
+            ['godmode',  'Trace never grows — you cannot lose'],
+            ['rich',     '+10,000 credits'],
+            ['unlock',   'Crack every node instantly'],
+            ['reveal',   'Mark all files as read'],
+            ['skip',     'Complete current mission instantly'],
+            ['turbo',    'All commands become instant'],
+            ['xray',     'See all node info without cracking'],
+            ['links',    'Auto-discover all link-analysis connections'],
+            ['helios',   'Instant victory screen'],
+            ['konami',   'Rainbow terminal output'],
+        ];
+        if (!arg) {
+            log('╔═══ CHEAT CODES ═══╗', 'status-gold');
+            list.forEach(([code, desc]) => {
+                const used = CHEATS.used.includes(code) ? ' <span class="status-muted">[used]</span>' : '';
+                log(`  <b>${code}</b>${used}`);
+                log(`     ${desc}`, 'status-muted');
+            });
+            log('╚═══════════════════╝', 'status-gold');
+            return;
+        }
+        const code = arg.toLowerCase();
+        if (!list.find(([c]) => c === code)) return fail(`Unknown cheat code: ${esc(code)}`);
+        if (code === 'godmode') {
+            CHEATS.godmode = !CHEATS.godmode;
+            gameState.isTraced = false; gameState.traceLevel = 0;
+            log(`[CHEAT] God mode ${CHEATS.godmode ? 'ENABLED' : 'disabled'}.`, 'status-gold');
+            updateCheatBadge(); saveCheats(); renderKPIs();
+            return;
+        }
+        if (code === 'turbo') {
+            CHEATS.turbo = !CHEATS.turbo;
+            log(`[CHEAT] Turbo ${CHEATS.turbo ? 'ENABLED' : 'disabled'}.`, 'status-gold');
+            updateCheatBadge(); saveCheats();
+            return;
+        }
+        if (code === 'xray') {
+            CHEATS.xray = !CHEATS.xray;
+            log(`[CHEAT] X-ray ${CHEATS.xray ? 'ENABLED' : 'disabled'}.`, 'status-gold');
+            renderNodes(); saveCheats();
+            return;
+        }
+        if (code === 'konami') {
+            CHEATS.rainbow = !CHEATS.rainbow;
+            document.body.classList.toggle('rainbow', CHEATS.rainbow);
+            log(`[CHEAT] Rainbow ${CHEATS.rainbow ? 'ENABLED' : 'disabled'}.`, 'status-gold');
+            saveCheats();
+            return;
+        }
+        if (code === 'rich') {
+            gameState.credits += 10000;
+            log(`[CHEAT] +10,000cr. Balance: ${gameState.credits}cr`, 'status-gold');
+            Sound.ok(); renderKPIs();
+            CHEATS.used.push(code); saveCheats();
+            return;
+        }
+        if (code === 'unlock') {
+            gameState.nodes.forEach(n => { n.owned = true; });
+            log('[CHEAT] Every node cracked.', 'status-gold');
+            Sound.ok(); renderNodes();
+            CHEATS.used.push(code); saveCheats();
+            return;
+        }
+        if (code === 'reveal') {
+            gameState.nodes.forEach(n => {
+                n.owned = true;
+                n.files.forEach(k => {
+                    const entry = FILE_LIBRARY[k];
+                    if (entry && !n.filesRead.includes(entry.name)) n.filesRead.push(entry.name);
+                });
+            });
+            log('[CHEAT] Every file marked as read.', 'status-gold');
+            Sound.ok(); renderNodes(); renderKPIs();
+            if (gameState.freeRoamMode) checkFinalObjective();
+            CHEATS.used.push(code); saveCheats();
+            return;
+        }
+        if (code === 'links') {
+            gameState.nodes.forEach(n => {
+                n.owned = true;
+                n.files.forEach(k => {
+                    const entry = FILE_LIBRARY[k];
+                    if (entry && !n.filesRead.includes(entry.name)) n.filesRead.push(entry.name);
+                });
+            });
+            CONFIG.LINK_TARGETS.forEach(t => {
+                const key = linkKey(t.a, t.b);
+                if (!gameState.discoveredLinks.includes(key)) gameState.discoveredLinks.push(key);
+            });
+            log(`[CHEAT] All ${CONFIG.LINK_TARGETS.length} links established.`, 'status-gold');
+            Sound.link(); renderNodes(); renderKPIs();
+            checkLinkCompletion();
+            if (gameState.freeRoamMode) checkFinalObjective();
+            CHEATS.used.push(code); saveCheats();
+            return;
+        }
+        if (code === 'skip') {
+            const m = currentMission();
+            if (!m) return log('No active mission to skip.', 'status-muted');
+            if (m.isFinal) return log('[CHEAT] Final mission cannot be skipped.', 'status-warn');
+            while (m.stepIdx < m.steps.length) m.stepIdx++;
+            m.status = 'complete';
+            gameState.stats.completed++;
+            gameState.credits += m.reward;
+            const next = gameState.missions.find(x => x.status === 'locked');
+            if (next) next.status = 'active';
+            else enterFreeRoamMode();
+            log(`[CHEAT] Skipped: ${esc(m.title)} <span class="status-warn">+${m.reward}cr</span>`, 'status-gold');
+            Sound.ok(); renderMissions(); renderKPIs();
+            CHEATS.used.push(code); saveCheats();
+            return;
+        }
+        if (code === 'helios') {
+            log('[CHEAT] HELIOS PROTOCOL INITIATED...', 'status-gold');
+            CHEATS.used.push(code); saveCheats();
+            setTimeout(() => triggerVictory(), 800);
+            return;
+        }
+    },
+    save() {
+        try {
+            localStorage.setItem(BASE_CONFIG.SAVE_KEY, JSON.stringify({ ...gameState, history: gameState.history.slice(-50) }));
+            log('Progress saved.', 'status-success');
+        } catch (e) { fail('Save failed: ' + e.message); }
+    },
+    load() {
+        try {
+            const raw = localStorage.getItem(BASE_CONFIG.SAVE_KEY);
+            if (!raw) return log('No save found.', 'status-muted');
+            const data = JSON.parse(raw);
+            gameState = Object.assign(freshState(), data);
+            connectedNode = gameState.connectedNodeIp || null;
+            renderNodes(); renderMissions(); renderKPIs();
+            if (gameState.freeRoamMode) freeRoamBadge.classList.add('on');
+            log('Progress loaded.', 'status-success');
+            if (gameState.gameOver) overlay.style.display = 'flex';
+        } catch (e) { fail('Load failed: ' + e.message); }
+    },
+    clear() { output.innerHTML = ''; },
+    reset() {
+        try {
+            localStorage.removeItem(BASE_CONFIG.SAVE_KEY);
+            localStorage.removeItem(BASE_CONFIG.CHEAT_KEY);
+            localStorage.removeItem(BASE_CONFIG.DIFF_KEY);
+        } catch (e) {}
+        location.reload();
+    },
+    dir() { COMMANDS.ls(); },
+    read(arg) { COMMANDS.cat(arg); },
+};
+
+/* ============================================================
+   HELPERS
+   ============================================================ */
+function findNode(ip) { return gameState.nodes.find(n => n.ip.toLowerCase() === String(ip).toLowerCase()); }
+function resolveFile(node, filenameOrKey) {
+    if (!node) return null;
+    const lower = String(filenameOrKey).toLowerCase();
+    const key = node.files.find(k => {
+        const e = FILE_LIBRARY[k];
+        return e && (e.name.toLowerCase() === lower || k.toLowerCase() === lower);
+    });
+    return key ? { key, ...FILE_LIBRARY[key] } : null;
+}
+function fail(msg) { log(msg, 'status-error'); Sound.error(); }
+function makeProgressBar() {
+    const wrap = document.createElement('div');
+    wrap.className = 'line';
+    const label = document.createElement('span');
+    label.className = 'status-info';
+    label.textContent = '  [';
+    const bar = document.createElement('span');
+    bar.className = 'progress-bar';
+    const fill = document.createElement('span');
+    bar.appendChild(fill);
+    const close = document.createElement('span');
+    close.className = 'status-info';
+    close.textContent = ']';
+    wrap.appendChild(label); wrap.appendChild(bar); wrap.appendChild(close);
+    output.appendChild(wrap);
+    output.scrollTop = output.scrollHeight;
+    let pct = 0;
+    const iv = setInterval(() => {
+        pct += 5;
+        fill.style.width = Math.min(pct, 100) + '%';
+        if (pct >= 100) clearInterval(iv);
+    }, CHEATS.turbo ? 1 : 40);
+    return { finish: () => { fill.style.width = '100%'; clearInterval(iv); } };
+}
+
+/* ============================================================
+   INPUT
+   ============================================================ */
+const COMMAND_NAMES = Object.keys(COMMANDS);
+
+function pushHistory(cmd) {
+    if (!cmd) return;
+    if (gameState.history[gameState.history.length - 1] !== cmd) {
+        gameState.history.push(cmd);
+        if (gameState.history.length > 100) gameState.history.shift();
+    }
+    gameState.historyIdx = -1;
+}
+
+function autocomplete(val) {
+    const parts = val.split(/\s+/);
+    if (parts.length === 1) {
+        const matches = COMMAND_NAMES.filter(c => c.startsWith(parts[0].toLowerCase()));
+        if (matches.length === 1) return matches[0] + ' ';
+        if (matches.length > 1) log(matches.join('  '), 'status-muted');
+        return val;
+    }
+    const cmd = parts[0].toLowerCase();
+    const prefix = parts[parts.length - 1].toLowerCase();
+
+    if (cmd === 'difficulty') {
+        const matches = Object.keys(DIFFICULTIES).filter(d => d.startsWith(prefix));
+        if (matches.length === 1) { parts[parts.length - 1] = matches[0]; return parts.join(' ') + ' '; }
+        if (matches.length > 1) log(matches.join('  '), 'status-muted');
+        return val;
+    }
+    if (cmd === 'link') {
+        const allFiles = [];
+        gameState.nodes.forEach(n => n.files.forEach(k => {
+            const e = FILE_LIBRARY[k]; if (e) allFiles.push(e.name);
+        }));
+        const matches = allFiles.filter(n => n.toLowerCase().startsWith(prefix));
+        if (matches.length === 1) { parts[parts.length - 1] = matches[0]; return parts.join(' ') + ' '; }
+        if (matches.length > 1) log(matches.join('  '), 'status-muted');
+        return val;
+    }
+    if (['cat','open','download','read'].includes(cmd) && connectedNode) {
+        const node = findNode(connectedNode);
+        if (node) {
+            const names = node.files.map(k => FILE_LIBRARY[k]?.name).filter(Boolean);
+            const matches = names.filter(n => n.toLowerCase().startsWith(prefix));
+            if (matches.length === 1) { parts[parts.length - 1] = matches[0]; return parts.join(' ') + ' '; }
+            if (matches.length > 1) log(matches.join('  '), 'status-muted');
+        }
+        return val;
+    }
+    if (!prefix) return val;
+    const ipMatches = gameState.nodes.map(n => n.ip).filter(ip => ip.toLowerCase().startsWith(prefix));
+    if (ipMatches.length === 1) {
+        parts[parts.length - 1] = ipMatches[0];
+        return parts.join(' ') + (ipMatches[0] === prefix ? ' ' : '');
+    }
+    if (ipMatches.length > 1) log(ipMatches.join('  '), 'status-muted');
+    return val;
+}
+
+input.addEventListener('keydown', (e) => {
+    if (e.key === 'Tab') { e.preventDefault(); input.value = autocomplete(input.value); return; }
+    if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (gameState.history.length === 0) return;
+        if (gameState.historyIdx === -1) gameState.historyIdx = gameState.history.length - 1;
+        else gameState.historyIdx = Math.max(0, gameState.historyIdx - 1);
+        input.value = gameState.history[gameState.historyIdx] || '';
+        setTimeout(() => input.setSelectionRange(input.value.length, input.value.length), 0);
+        return;
+    }
+    if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (gameState.historyIdx === -1) return;
+        gameState.historyIdx++;
+        if (gameState.historyIdx >= gameState.history.length) {
+            gameState.historyIdx = -1;
+            input.value = '';
+        } else input.value = gameState.history[gameState.historyIdx];
+        return;
+    }
+    if (e.key === 'Enter') {
+        const raw = input.value;
+        const val = raw.trim();
+        if (!val) return;
+        input.value = '';
+        pushHistory(val);
+        const parts = val.split(/\s+/);
+        const cmd = parts[0].toLowerCase();
+        const arg = parts[1];
+        log(`<span class="prompt">${esc(promptLabel.textContent)}</span> ${esc(val)}`);
+        Sound.key();
+        if (gameState.gameOver) return fail('Connection terminated. Reboot required.');
+        if (!COMMANDS[cmd]) return fail(`Unknown command: ${esc(cmd)}`);
+        try { COMMANDS[cmd](arg ? arg.toLowerCase() : undefined); }
+        catch (err) {
+            fail('Command error: ' + err.message);
+            try {
+                if (typeof google !== 'undefined' && google.colab && google.colab.kernel) {
+                    google.colab.kernel.invokeFunction('report_js_error', [`cmd ${cmd}: ${err.message}`], {});
+                }
+            } catch (e) {}
+        }
+    }
+});
+
+window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        if (fileViewer.classList.contains('open')) { closeFile(); return; }
+        if (graphViewer.classList.contains('open')) { closeGraph(); return; }
+    }
+    if (e.key === 'd' && fileViewer.classList.contains('open') && !e.ctrlKey && !e.metaKey) {
+        if (document.activeElement !== input && activeFile) COMMANDS.download(activeFile.filename);
+    }
+});
+
+terminalContainer.addEventListener('click', (e) => {
+    if (e.target === overlay || overlay.contains(e.target)) return;
+    if (e.target === diffOverlay || diffOverlay.contains(e.target)) return;
+    if (fileViewer.classList.contains('open')) return;
+    if (graphViewer.classList.contains('open')) return;
+    input.focus();
+});
+
+rebootBtn.addEventListener('click', () => location.reload());
+
+diffOverlay.querySelectorAll('.diff-card').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const key = btn.getAttribute('data-diff');
+        if (!DIFFICULTIES[key]) return;
+        try { localStorage.setItem(BASE_CONFIG.DIFF_KEY, key); } catch (e) {}
+        try { localStorage.removeItem(BASE_CONFIG.SAVE_KEY); } catch (e) {}
+        location.reload();
+    });
+});
+
+/* ============================================================
+   BOOT
+   ============================================================ */
+function boot() {
+    loadCheats();
+    updateCheatBadge();
+    if (CHEATS.rainbow) document.body.classList.add('rainbow');
+
+    // Kick off IP lookup (non-blocking)
+    fetchVisitorIP();
+
+    let storedDiff = null;
+    try { storedDiff = localStorage.getItem(BASE_CONFIG.DIFF_KEY); } catch (e) {}
+
+    let savedDifficulty = null;
+    try {
+        const raw = localStorage.getItem(BASE_CONFIG.SAVE_KEY);
+        if (raw) savedDifficulty = JSON.parse(raw).difficulty || null;
+    } catch (e) {}
+
+    const chosen = storedDiff || savedDifficulty;
+    if (chosen && DIFFICULTIES[chosen]) {
+        applyDifficulty(chosen);
+        startGame();
+    } else {
+        diffOverlay.style.display = 'flex';
+        input.disabled = true;
+    }
+}
+
+function startGame() {
+    diffOverlay.style.display = 'none';
+    input.disabled = false;
+
+    log('[SYSTEM] SKIDnet-OS Interface Initialized...', 'status-success');
+    log(`[SYSTEM] Difficulty: <b>${CONFIG.name}</b> — ${CONFIG.description}`, 'status-gold');
+    log('[SYSTEM] Type <b>help</b> for available commands.', 'status-muted');
+    log('[SYSTEM] Watch for <span class="status-classified">[CLASSIFIED]</span> dossiers and <span class="status-audio">[AUDIO]</span> logs.', 'status-muted');
+    log('[SYSTEM] Your public IP is shown in the sidebar — type <b>ip</b> to refresh.', 'status-muted');
+    log('');
+
+    gameState.missions = buildMissions();
+    gameState.difficulty = CONFIG.difficulty;
+
+    try {
+        const raw = localStorage.getItem(BASE_CONFIG.SAVE_KEY);
+        if (raw) {
+            const data = JSON.parse(raw);
+            gameState = Object.assign(freshState(), data);
+            connectedNode = gameState.connectedNodeIp || null;
+            log('[SYSTEM] Save detected — progress restored.', 'status-success');
+            if (gameState.freeRoamMode) {
+                freeRoamBadge.classList.add('on');
+                log('[SYSTEM] Free-roam mode active — trace offline.', 'status-gold');
+            }
+        }
+    } catch (e) {}
+
+    if (!gameState.missions || !gameState.missions.length) gameState.missions = buildMissions();
+
+    renderNodes(); renderMissions(); renderKPIs();
+    startTick();
+
+    const m = currentMission();
+    if (m && !gameState.gameOver) {
+        if (m.isFinal) {
+            log(`[FINAL] ${esc(m.title)} — ${esc(m.desc)}`, 'status-gold');
+            const { done, total } = requiredProgress();
+            log(`[FINAL] Key files: <b>${done}/${total}</b>`, 'status-gold');
+        } else {
+            log(`[OBJECTIVE] ${esc(m.title)} — ${esc(m.desc)}`, 'status-warn');
+            log(`[OBJECTIVE] Next step: <b>${m.steps[0].action} ${esc(m.steps[0].target)}</b>`, 'status-info');
+        }
+    }
+
+    input.focus();
+}
+
+window.addEventListener('beforeunload', () => {
+    try {
+        localStorage.setItem(BASE_CONFIG.SAVE_KEY, JSON.stringify({
+            ...gameState,
+            history: gameState.history.slice(-50),
+        }));
+    } catch (e) {}
+});
+
+boot();
+</script>
+</body>
+</html>
