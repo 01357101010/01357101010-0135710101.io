@@ -1,3 +1,5 @@
+<img width="1920" height="1080" alt="hacknet-free-steam" src="https://github.com/user-attachments/assets/1183e9d6-484b-4859-a357-446c8eb64854" />
+
 # WELCOME TO THE NETWORK.
 
 You are an anonymous operator entering a hidden digital world controlled by corporations, underground groups, and unknown entities.
