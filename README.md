@@ -58,4 +58,4 @@ Some consequences may not appear immediately. A decision made three missions ago
 
 The network remembers what you do.
 
-||**Choose carefully. Every connection leaves a trace.**||
+**Choose carefully. Every connection leaves a trace.**
